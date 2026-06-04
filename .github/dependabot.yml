@@ -9,6 +9,10 @@ updates:
       - "type:chore"
     commit-message:
       prefix: "chore(config)"
+    # Free Edition needs databricks-connect==18.1.* (pinned in CLAUDE.md); Dependabot
+    # cannot resolve that pin and keeps proposing a downgrade, so we ignore it here.
+    ignore:
+      - dependency-name: "databricks-connect"
 
   # GitHub Actions used by the CI workflow.
   - package-ecosystem: github-actions
