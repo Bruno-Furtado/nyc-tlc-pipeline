@@ -40,8 +40,7 @@ def bronze_table(taxi: str) -> str:
 
 
 def run_sql_file(spark: DatabricksSession, sql_name: str) -> None:
-    """Run each `;`-separated statement of src/sql/<sql_name> against the target catalog.
-    """
+    """Run each `;`-separated statement of src/sql/<sql_name> against the target catalog."""
     sql_path = SQL_DIR / sql_name
     if not sql_path.exists():
         raise FileNotFoundError(f"SQL file not found: {sql_path}")
