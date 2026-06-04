@@ -40,8 +40,6 @@ databricks auth login --host <workspace-url>
 python src/pipeline/00_setup.py
 ```
 
-> No local PySpark/Java/Delta needed, `databricks-connect` ships the client. Credentials live in `~/.databrickscfg`
-
 ### Lint
 Config in `ruff.toml`. Run before committing:
 ```
@@ -50,6 +48,8 @@ ruff check --fix src/    # auto-fix what's safe (incl. import sorting)
 ruff format src/         # format code
 ```
 
+> No local PySpark/Java/Delta needed, `databricks-connect` ships the client.
+
 ## 🚀 Deploy
 Free Edition is a single workspace, so dev/prod are isolated by **catalog**:
 ```
@@ -57,14 +57,14 @@ nyc_tlc_dev   # default, local/testing
 nyc_tlc       # production, auto-deployed on merge to main
 ```
 
-> Merging a PR into `main` runs the pipeline against **prod** automatically.
-
 ### CI
 GitHub Actions (`.github/workflows/ci.yml`) runs on every PR:
 ```
 ruff check src/
 ruff format --check src/
 ```
+
+> Merging a PR into `main` runs the pipeline against **prod** automatically.
 
 ## 📄 License
 Released under the MIT License. See [LICENSE](LICENSE).
