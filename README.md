@@ -66,9 +66,6 @@ ruff format --check src/
 
 > Merging a PR into `main` runs the pipeline against **prod** automatically.
 
-## 📄 License
-Released under the MIT License. See [LICENSE](LICENSE).
-
 ---
 
 <div align="center">
