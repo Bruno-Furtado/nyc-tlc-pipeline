@@ -24,6 +24,8 @@ docs/                 # goals, plan, conventions, data model
 ```
 
 ## 🧑‍💻 Dev
+Built in VSCode with Claude Code (see `.vscode/extensions.json` for recommended extensions).
+
 Runs locally via Databricks Connect; targets the **dev** catalog (`nyc_tlc_dev`) by default.
 ```
 # 1. virtualenv — must be Python 3.12 (databricks-connect requires it)
