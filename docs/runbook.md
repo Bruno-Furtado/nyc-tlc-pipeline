@@ -5,6 +5,9 @@ Setup phase ready (pending its PR): scaffolding (`.gitignore`, `ruff.toml` with 
 pre-commit hook that blocks direct commits to `main` and runs ruff, `.vscode`), `config.py`
 (`CATALOG`, `get_spark()`, `get_logger()`), `00_setup.sql` + `00_setup.py` runner, docs and README.
 Dev/prod isolated by catalog via `NYC_TLC_CATALOG` (default `nyc_tlc_dev`).
+Merge to `main` auto-deploys to prod (`nyc_tlc`): the `deploy` job in `ci.yml` runs every
+`src/pipeline/NN_*.py` in order via Databricks Connect (needs `DATABRICKS_HOST`/`DATABRICKS_TOKEN`
+secrets). Step 5 (Asset Bundle Job DAG) is the more robust orchestration that supersedes this later.
 
 ## Plan (one PR per phase)
 - **Step 1 — setup:** scaffolding + `config.py` (`CATALOG`, `get_spark()`, `get_logger()`) + `00_setup.sql`/`00_setup.py` (catalog, bronze/silver/gold schemas, landing volume).

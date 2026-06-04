@@ -4,6 +4,7 @@ on:
   push:
     branches: [main]
   pull_request:
+  workflow_dispatch:
 
 jobs:
   lint:
@@ -19,3 +20,26 @@ jobs:
         run: ruff check src/
       - name: ruff format check
         run: ruff format --check src/
+
+  # Deploy to production (catalog nyc_tlc) on merge to main, via Databricks Connect.
+  deploy:
+    needs: lint
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    env:
+      DATABRICKS_HOST: ${{ secrets.DATABRICKS_HOST }}
+      DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_TOKEN }}
+      NYC_TLC_CATALOG: nyc_tlc
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install runtime deps
+        run: pip install -r requirements.txt
+      - name: Run pipeline against prod
+        run: |
+          for f in src/pipeline/[0-9]*.py; do
+            echo "running $f"
+            python "$f"
+          done

@@ -31,11 +31,14 @@ Free Edition is a single workspace, so dev/prod are isolated by **catalog**, not
 - `nyc_tlc_dev` — default, local/testing
 - `nyc_tlc` — production
 
-Every step reads the target from `NYC_TLC_CATALOG` (default `nyc_tlc_dev`, so an unconfigured run never touches prod). To run against prod, set it for the command:
+Every step reads the target from `NYC_TLC_CATALOG` (default `nyc_tlc_dev`, so an unconfigured run never touches prod). To run against prod manually, set it for the command:
 ```
 NYC_TLC_CATALOG=nyc_tlc python src/pipeline/00_setup.py
 ```
 On Databricks itself: import the repo as a Git folder and run the same scripts.
+
+### Deploy to prod
+Merging a PR into `main` runs the pipeline against the **prod** catalog (`nyc_tlc`) automatically — the `deploy` job in `.github/workflows/ci.yml` executes every `src/pipeline/NN_*.py` in order via Databricks Connect. It needs two GitHub repo secrets: `DATABRICKS_HOST` and `DATABRICKS_TOKEN` (a workspace PAT). The job can also be triggered manually from the Actions tab (`workflow_dispatch`).
 
 ## Notes
 - No local PySpark/Java/Delta needed — `databricks-connect` ships the client; only Spark ops run on serverless, plain Python (`requests`, file I/O) runs on your machine.
