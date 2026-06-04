@@ -1,5 +1,3 @@
-# nyc-tlc-pipeline
-
 <div align="center">
 
 ![cover](./docs/cover.webp)
@@ -10,7 +8,7 @@
 
 </div>
 
-<br/>
+---
 
 <div align="center">
 
