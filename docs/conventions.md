@@ -13,6 +13,10 @@ Never commit directly to `main` — all work happens on a branch (enforced by th
 - Title in Conventional Commits (becomes the squash commit).
 - Body: **What / Why / Notes / Next**. One PR per phase.
 - Before opening, review that all files are current — especially the Markdown (README, CLAUDE.md, docs/).
+- **Assignee:** the PR author. **Reviewer:** n/a while solo (GitHub forbids the author reviewing their own PR).
+- **Milestone:** one per step, e.g. `Step 1 — setup`.
+- **Labels:** by type/phase (to be organized).
+- Commits credit Claude via the `Co-Authored-By` trailer.
 
 ## Merge
 Squash and merge. One commit per PR, linear history on `main`.
