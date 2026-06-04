@@ -18,7 +18,7 @@ CATALOG = os.environ.get("NYC_TLC_CATALOG", "nyc_tlc_dev")
 
 def get_spark() -> DatabricksSession:
     """Spark session — same call locally (Databricks Connect) and on Databricks."""
-    return DatabricksSession.builder.getOrCreate()
+    return DatabricksSession.builder.serverless(True).getOrCreate()
 
 
 def get_logger(name: str) -> logging.Logger:
