@@ -23,11 +23,13 @@ Personal project to learn Databricks: a medallion pipeline (bronze/silver/gold) 
 - Observability via Delta history (no `control` schema).
 - Scope: yellow + green, incremental from 2023-01 to the latest month the TLC has published. Q1 = yellow only; Q2 = yellow+green, May 2023.
 - Ingestion is incremental: `01_download.py` lands only missing months (unpublished TLC months return 403/404, skipped); `02_bronze.py` appends only files whose `source_file` isn't in bronze yet. Dedup by file name, so reruns in the same month are no-ops.
-- Bronze audit columns: `audit_id` (one per ingestion run/batch), `ingestion_timestamp`, `source_file`.
+- Bronze lineage: `source_file` on each row (the lineage + incremental key); loads are versioned in Delta history (no per-row audit_id/ingestion_timestamp — Delta history already records the load).
 - Consumption columns: VendorID, passenger_count, total_amount, pickup_datetime, dropoff_datetime, taxi_type.
 - Canonical timestamps: tpep_*/lpep_* → pickup_datetime/dropoff_datetime in silver.
 - Negative total_amount: keep + flag `is_amount_valid` (don't filter).
+- Transform layers in **Spark SQL** (`src/sql/NN_*.sql`, run by thin Python runners via `config.run_sql_file`); PySpark stays in ingestion. No dbt. SQL files are numbered like their runners.
+- Silver = pure conformation, **no filter** (all months/rows); **incremental by `source_file`** (appends only files not yet in silver, like bronze); **Liquid Clustered by `(year, month)`** from the file name. The Jan–May 2023 scope + question rules live in `gold.obt_trips`.
 - Answers come from `gold.obt_trips`.
-- Metadata on every UC object — `COMMENT ON … IS …` and `ALTER … SET TAGS (…)` (both idempotent; reapply to existing objects). Descriptive, business-oriented; feeds Catalog Explorer + AI/BI Genie. `SET TAGS` rejects `IDENTIFIER(… || …)`, so `USE CATALOG` + relative schema names. Keep comment/tag text free of `;` (the `00_setup.py` splitter breaks on it).
+- Metadata on every UC object — `COMMENT ON … IS …` and `ALTER … SET TAGS (…)` (both idempotent; reapply to existing objects). Descriptive, business-oriented; feeds Catalog Explorer + AI/BI Genie. `SET TAGS` rejects `IDENTIFIER(… || …)`, so `USE CATALOG` + relative schema names. `config.run_sql_file` strips `--` line comments before splitting on `;`, but a `;` inside a string literal still splits — keep `COMMENT`/`SET TAGS` text free of `;`.
 - Dev/prod isolated by catalog via `NYC_TLC_CATALOG` (default `nyc_tlc_dev`) — Free Edition is one workspace.
 - Code: logging (not print), fail-fast errors with clear messages, type hints required (ruff E/F/I/ANN).

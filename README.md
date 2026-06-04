@@ -18,11 +18,16 @@ Medallion pipeline for the NYC TLC taxi dataset on Databricks Free Edition.
 ```
 src/
 ├─ pipeline/
-│  ├─ 00_setup.py     # provision catalog, schemas, landing volume
+│  ├─ config.py       # catalog, spark/logger, landing_dir/bronze_table, run_sql_file
+│  ├─ 00_setup.py     # provision catalog, schemas, landing volume (runs 00_setup.sql)
 │  ├─ 01_download.py  # land TLC parquet into bronze.landing (incremental)
-│  ├─ 02_bronze.py    # append landed files into bronze Delta + audit columns
-│  └─ 03_verify.py    # reconcile landing vs bronze row counts (fail-fast)
-└─ sql/00_setup.sql   # catalog, schemas and landing volume
+│  ├─ 02_bronze.py    # append landed files into bronze Delta, PySpark (source_file lineage)
+│  ├─ 03_verify.py    # reconcile landing vs bronze row counts (fail-fast)
+│  └─ 04_silver.py    # build silver.taxi_trips (runs 04_silver.sql)
+└─ sql/
+   ├─ 00_setup.sql    # catalog, schemas, landing volume
+   ├─ 02_bronze.sql   # bronze table comments + tags
+   └─ 04_silver.sql   # silver: conform yellow+green, Spark SQL (incremental, clustered)
 analysis/             # the 2 answers and EDA
 docs/                 # goals, plan, conventions, data model
 ```
@@ -45,10 +50,11 @@ databricks auth login --host <workspace-url>
 # 4. provision the dev catalog (schemas + landing volume, with comments + tags)
 python src/pipeline/00_setup.py
 
-# 5. land TLC files, ingest into bronze, then verify (all incremental, safe to rerun)
+# 5. land TLC files, ingest into bronze, verify, then build silver (all incremental, safe to rerun)
 python src/pipeline/01_download.py
 python src/pipeline/02_bronze.py
 python src/pipeline/03_verify.py
+python src/pipeline/04_silver.py
 ```
 
 ### Lint
