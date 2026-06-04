@@ -7,6 +7,20 @@
 
 Observability via Delta history (`DESCRIBE HISTORY`). Row lineage via `audit_id`.
 
+## Metadata (comments & tags)
+Every Unity Catalog object carries metadata — set in `00_setup.sql` for catalog/schemas/volume,
+and on tables and key columns as each layer is built. Both surface in **Catalog Explorer** and feed
+**AI/BI Genie**, so they're descriptive and business-oriented (Databricks standard practice).
+
+- **Comments** — `COMMENT ON … IS …` (not inline `CREATE … COMMENT`): idempotent, reapplies to
+  existing objects, while `CREATE IF NOT EXISTS` skips them.
+- **Tags** — `ALTER … SET TAGS (…)` (idempotent): `project = nyc-tlc` on the catalog, `layer =
+  bronze|silver|gold` on the schemas; later for column-level classification (e.g. PII). Note:
+  `SET TAGS` rejects `IDENTIFIER(:catalog || '.<schema>')`, so we `USE CATALOG identifier(:catalog)`
+  first and tag schemas by relative name.
+
+Keep comment/tag text free of `;` — the `00_setup.py` splitter breaks statements on semicolons.
+
 ## Decisions
 - **Yellow + green only** (NYC taxis; FHV/HVFHV aren't taxis, no passenger_count). Q1 = yellow; Q2 = yellow+green.
 - **Canonical timestamps:** yellow `tpep_*`, green `lpep_*` → `pickup_datetime`/`dropoff_datetime` in silver.
