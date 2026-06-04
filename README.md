@@ -17,7 +17,11 @@ Medallion pipeline for the NYC TLC taxi dataset on Databricks Free Edition.
 ## 🗂️ Structure
 ```
 src/
-├─ pipeline/          # pipeline steps (setup now; ingest/bronze/silver/gold next)
+├─ pipeline/
+│  ├─ 00_setup.py     # provision catalog, schemas, landing volume
+│  ├─ 01_download.py  # land TLC parquet into bronze.landing (incremental)
+│  ├─ 02_bronze.py    # append landed files into bronze Delta + audit columns
+│  └─ 03_verify.py    # reconcile landing vs bronze row counts (fail-fast)
 └─ sql/00_setup.sql   # catalog, schemas and landing volume
 analysis/             # the 2 answers and EDA
 docs/                 # goals, plan, conventions, data model
@@ -40,6 +44,11 @@ databricks auth login --host <workspace-url>
 
 # 4. provision the dev catalog (schemas + landing volume, with comments + tags)
 python src/pipeline/00_setup.py
+
+# 5. land TLC files, ingest into bronze, then verify (all incremental, safe to rerun)
+python src/pipeline/01_download.py
+python src/pipeline/02_bronze.py
+python src/pipeline/03_verify.py
 ```
 
 ### Lint

@@ -21,7 +21,9 @@ Personal project to learn Databricks: a medallion pipeline (bronze/silver/gold) 
 ## Decisions
 - Local + Databricks run the same code via **Databricks Connect**: `get_spark()` = `DatabricksSession.builder.serverless(True).getOrCreate()` (Free Edition is serverless; needs `databricks-connect==18.1.*`).
 - Observability via Delta history (no `control` schema).
-- Scope: yellow + green, 2023 (Jan–May). Q1 = yellow only; Q2 = yellow+green, May.
+- Scope: yellow + green, incremental from 2023-01 to the latest month the TLC has published. Q1 = yellow only; Q2 = yellow+green, May 2023.
+- Ingestion is incremental: `01_download.py` lands only missing months (unpublished TLC months return 403/404, skipped); `02_bronze.py` appends only files whose `source_file` isn't in bronze yet. Dedup by file name, so reruns in the same month are no-ops.
+- Bronze audit columns: `audit_id` (one per ingestion run/batch), `ingestion_timestamp`, `source_file`.
 - Consumption columns: VendorID, passenger_count, total_amount, pickup_datetime, dropoff_datetime, taxi_type.
 - Canonical timestamps: tpep_*/lpep_* → pickup_datetime/dropoff_datetime in silver.
 - Negative total_amount: keep + flag `is_amount_valid` (don't filter).

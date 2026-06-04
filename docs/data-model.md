@@ -5,7 +5,7 @@
 - **silver** — `taxi_trips`: yellow+green unified, canonical timestamps, typed, `is_amount_valid` flag. No business filter.
 - **gold** — star schema (`fact_trips` + `dim_date`, `dim_vendor`, `dim_taxi_type`) and `obt_trips` (serving). Answers use the OBT.
 
-Observability via Delta history (`DESCRIBE HISTORY`). Row lineage via `audit_id`.
+Observability via Delta history (`DESCRIBE HISTORY`). Load lineage via `audit_id` (one per ingestion run) + `source_file`.
 
 ## Metadata (comments & tags)
 Every Unity Catalog object carries metadata — set in `00_setup.sql` for catalog/schemas/volume,
@@ -23,10 +23,12 @@ Keep comment/tag text free of `;` — the `00_setup.py` splitter breaks statemen
 
 ## Decisions
 - **Yellow + green only** (NYC taxis; FHV/HVFHV aren't taxis, no passenger_count). Q1 = yellow; Q2 = yellow+green.
+- **Incremental scope:** from 2023-01 to the latest published month, both taxi types every month. The TLC publishes whole closed months with ~2 months' lag; unpublished months return 403/404 and are skipped.
 - **Canonical timestamps:** yellow `tpep_*`, green `lpep_*` → `pickup_datetime`/`dropoff_datetime` in silver.
 - **Negative total_amount kept** (refund/void = real revenue; payment_type 4/6). Flag `is_amount_valid`, don't filter.
 - **Star + OBT:** star = dimensional truth; OBT = join-free serving, faster on Delta.
-- **Idempotency:** overwrite by year/month partition or MERGE by key.
+- **Bronze idempotency:** append incremental, deduped by `source_file` (one file lands once). `audit_id` is one id per ingestion run (the batch), paired with `ingestion_timestamp` + `source_file` for lineage.
+- **Silver/gold idempotency:** overwrite by year/month partition or MERGE by key.
 
 ## Queries
 ```sql
@@ -50,4 +52,4 @@ order by pickup_hour;
 - **Why Delta?** ACID, idempotent MERGE, schema enforcement, time travel.
 - **Star and OBT?** Star is the truth; OBT serves BI without joins.
 - **Negative amounts?** Refund/void is real revenue; filtering biases the average.
-- **Lineage?** `audit_id` on rows + Delta history.
+- **Lineage?** `audit_id` (per ingestion run) + `source_file` on each row, plus Delta history.
