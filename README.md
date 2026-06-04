@@ -42,7 +42,7 @@ python src/pipeline/00_setup.py
 
 > No local PySpark/Java/Delta needed, `databricks-connect` ships the client. Credentials live in `~/.databrickscfg`
 
-### 🧹 Lint
+### Lint
 Config in `ruff.toml`. Run before committing:
 ```
 ruff check src/          # report issues
@@ -59,7 +59,7 @@ nyc_tlc       # production, auto-deployed on merge to main
 
 > Merging a PR into `main` runs the pipeline against **prod** automatically.
 
-### ⚙️ CI
+### CI
 GitHub Actions (`.github/workflows/ci.yml`) runs on every PR:
 ```
 ruff check src/
