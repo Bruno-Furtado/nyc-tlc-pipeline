@@ -5,26 +5,23 @@ source_file set) are read, lowercased (the TLC drifts column-name case), unioned
 and appended. Spark resolves NullType and type/column differences across files via
 the union; before appending we also cast the batch to the existing table's types,
 so type drift across months (e.g. vendorid Integer vs Long) doesn't break the merge.
-audit_id is one id per run (the load/batch), paired with ingestion_timestamp and
-source_file for lineage. Schema evolution is observable via Delta history.
+Each row carries source_file for lineage; each load is versioned in Delta history.
+
+The bronze schema is inferred from the source parquet (raw = schema-on-read); table
+comments and tags are declared in src/sql/02_bronze.sql, applied after the load.
+
+Functions are ordered by the call sequence (callers before the helpers they call); main, the
+entry point, sits at the bottom.
 """
 
-from uuid import uuid4
-
-from config import CATALOG, get_logger, get_spark
+from config import bronze_table, get_logger, get_spark, landing_dir, run_sql_file
 from databricks.sdk import WorkspaceClient
 from pyspark.sql import DataFrame, SparkSession
-from pyspark.sql.functions import current_timestamp, lit
+from pyspark.sql.functions import lit
 
 logger = get_logger(__name__)
 
 TAXI_TYPES = ("yellow", "green")
-
-AUDIT_COLUMN_COMMENTS = {
-    "audit_id": "Load/batch id (one per ingestion run)",
-    "ingestion_timestamp": "When the row was ingested into bronze",
-    "source_file": "Source parquet file name",
-}
 
 
 def landed_files(w: WorkspaceClient, volume_dir: str) -> set[str]:
@@ -44,13 +41,6 @@ def ingested_files(spark: SparkSession, table: str) -> set[str]:
     return {row.source_file for row in rows}
 
 
-def read_clean(spark: SparkSession, path: str, filename: str) -> DataFrame:
-    """Read one parquet, lowercase column names (the TLC drifts case), tag its source file."""
-    df = spark.read.parquet(path)
-    df = df.toDF(*[c.lower() for c in df.columns])
-    return df.withColumn("source_file", lit(filename))
-
-
 def read_new_files(spark: SparkSession, volume_dir: str, filenames: list[str]) -> DataFrame:
     """Read the given landing files and union them into one DataFrame (Spark merges schemas)."""
     combined = read_clean(spark, f"{volume_dir}/{filenames[0]}", filenames[0])
@@ -60,11 +50,11 @@ def read_new_files(spark: SparkSession, volume_dir: str, filenames: list[str]) -
     return combined
 
 
-def add_audit_columns(df: DataFrame, audit_id: str) -> DataFrame:
-    """Stamp each row with the load's audit_id and ingestion timestamp."""
-    return df.withColumn("audit_id", lit(audit_id)).withColumn(
-        "ingestion_timestamp", current_timestamp()
-    )
+def read_clean(spark: SparkSession, path: str, filename: str) -> DataFrame:
+    """Read one parquet, lowercase column names (the TLC drifts case), tag its source file."""
+    df = spark.read.parquet(path)
+    df = df.toDF(*[c.lower() for c in df.columns])
+    return df.withColumn("source_file", lit(filename))
 
 
 def conform_to_table(spark: SparkSession, df: DataFrame, table: str) -> DataFrame:
@@ -77,46 +67,32 @@ def conform_to_table(spark: SparkSession, df: DataFrame, table: str) -> DataFram
     return df
 
 
-def apply_metadata(spark: SparkSession, table: str, taxi: str) -> None:
-    """Document the bronze table and its audit columns (idempotent)."""
-    spark.sql(
-        f"comment on table {table} is "
-        f"'Raw {taxi} TLC trips, normalized column names plus audit columns.'"
-    )
-    spark.sql(f"alter table {table} set tags ('layer' = 'bronze')")
-    for column, text in AUDIT_COLUMN_COMMENTS.items():
-        spark.sql(f"alter table {table} alter column {column} comment '{text}'")
-
-
 def count_rows(spark: SparkSession, table: str) -> int:
     """Total row count of a table."""
     return spark.sql(f"select count(*) c from {table}").collect()[0].c
 
 
 def main() -> None:
-    """Append every new landed file into its bronze table with audit columns."""
+    """Append every new landed file into its bronze table, then document the tables."""
     spark = get_spark()
     w = WorkspaceClient()
-    run_audit_id = str(uuid4())
-    logger.info("bronze run audit_id=%s", run_audit_id)
 
     for taxi in TAXI_TYPES:
-        table = f"{CATALOG}.bronze.{taxi}_tripdata_raw"
-        volume_dir = f"/Volumes/{CATALOG}/bronze/landing/{taxi}"
+        table = bronze_table(taxi)
+        volume_dir = landing_dir(taxi)
         new_files = sorted(landed_files(w, volume_dir) - ingested_files(spark, table))
         if not new_files:
             logger.info("%s: nothing new to ingest", table)
             continue
 
         df = read_new_files(spark, volume_dir, new_files)
-        df = add_audit_columns(df, run_audit_id)
         df = conform_to_table(spark, df, table)
         df.write.mode("append").option("mergeSchema", "true").saveAsTable(table)
-        apply_metadata(spark, table, taxi)
-
         logger.info(
             "%s: %d new file(s), %d rows total", table, len(new_files), count_rows(spark, table)
         )
+
+    run_sql_file(spark, "02_bronze.sql")
 
 
 if __name__ == "__main__":
