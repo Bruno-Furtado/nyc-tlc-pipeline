@@ -20,9 +20,9 @@ pip install -r requirements.txt -r requirements-dev.txt
 # 3. Databricks CLI + auth
 brew tap databricks/tap && brew install databricks
 databricks auth login --host <workspace-url>
-# add `serverless_compute_id = auto` to the DEFAULT profile in ~/.databrickscfg
+# get_spark() requests serverless in code, so no serverless_compute_id is needed in ~/.databrickscfg
 
-# 4. provision the dev catalog (schemas + landing volume)
+# 4. provision the dev catalog (schemas + landing volume, with comments + tags)
 python src/pipeline/00_setup.py
 ```
 

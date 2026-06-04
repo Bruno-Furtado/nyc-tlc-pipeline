@@ -15,12 +15,13 @@ Personal project to learn Databricks: a medallion pipeline (bronze/silver/gold) 
 - Before opening a PR, review that all files are current with the change — especially the Markdown (README, CLAUDE.md, docs/).
 
 ## Decisions
-- Local + Databricks run the same code via **Databricks Connect**: `get_spark()` = `DatabricksSession.builder.getOrCreate()`.
+- Local + Databricks run the same code via **Databricks Connect**: `get_spark()` = `DatabricksSession.builder.serverless(True).getOrCreate()` (Free Edition is serverless; needs `databricks-connect==18.1.*`).
 - Observability via Delta history (no `control` schema).
 - Scope: yellow + green, 2023 (Jan–May). Q1 = yellow only; Q2 = yellow+green, May.
 - Consumption columns: VendorID, passenger_count, total_amount, pickup_datetime, dropoff_datetime, taxi_type.
 - Canonical timestamps: tpep_*/lpep_* → pickup_datetime/dropoff_datetime in silver.
 - Negative total_amount: keep + flag `is_amount_valid` (don't filter).
 - Answers come from `gold.obt_trips`.
+- Metadata on every UC object — `COMMENT ON … IS …` and `ALTER … SET TAGS (…)` (both idempotent; reapply to existing objects). Descriptive, business-oriented; feeds Catalog Explorer + AI/BI Genie. `SET TAGS` rejects `IDENTIFIER(… || …)`, so `USE CATALOG` + relative schema names. Keep comment/tag text free of `;` (the `00_setup.py` splitter breaks on it).
 - Dev/prod isolated by catalog via `NYC_TLC_CATALOG` (default `nyc_tlc_dev`) — Free Edition is one workspace.
 - Code: logging (not print), fail-fast errors with clear messages, type hints required (ruff E/F/I/ANN).

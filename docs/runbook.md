@@ -1,10 +1,11 @@
 # Runbook
 
 ## Current state
-Setup phase ready (pending its PR): scaffolding (`.gitignore`, `ruff.toml` with E/F/I/ANN,
-pre-commit hook that blocks direct commits to `main` and runs ruff, `.vscode`), `config.py`
-(`CATALOG`, `get_spark()`, `get_logger()`), `00_setup.sql` + `00_setup.py` runner, docs and README.
-Dev/prod isolated by catalog via `NYC_TLC_CATALOG` (default `nyc_tlc_dev`).
+Setup phase merged (PR #1): scaffolding (`.gitignore`, `ruff.toml` with E/F/I/ANN, pre-commit hook
+that blocks direct commits to `main` and runs ruff, `.vscode`), `config.py` (`CATALOG`,
+`get_spark()` on serverless, `get_logger()`), `00_setup.sql` + `00_setup.py` runner. Catalog objects
+carry comments + tags (see data-model.md). Dev/prod isolated by catalog via `NYC_TLC_CATALOG`
+(default `nyc_tlc_dev`).
 Merge to `main` auto-deploys to prod (`nyc_tlc`): the `deploy` job in `ci.yml` runs every
 `src/pipeline/NN_*.py` in order via Databricks Connect (needs `DATABRICKS_HOST`/`DATABRICKS_TOKEN`
 secrets). Step 5 (Asset Bundle Job DAG) is the more robust orchestration that supersedes this later.
