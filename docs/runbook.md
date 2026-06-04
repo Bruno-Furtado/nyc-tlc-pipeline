@@ -8,7 +8,8 @@ carry comments + tags (see data-model.md). Dev/prod isolated by catalog via `NYC
 (default `nyc_tlc_dev`).
 Merge to `main` auto-deploys to prod (`nyc_tlc`): the `deploy` job in `ci.yml` runs every
 `src/pipeline/NN_*.py` in order via Databricks Connect (needs `DATABRICKS_HOST`/`DATABRICKS_TOKEN`
-secrets). Step 5 (Asset Bundle Job DAG) is the more robust orchestration that supersedes this later.
+secrets). **This GitHub Actions deploy is a temporary bridge** — it reuses the same code we run
+locally to get auto-deploy with zero extra setup, but prod's real home is a Databricks Job (see Step 5).
 
 Extract + bronze in progress (Step 2): `01_download.py` lands TLC parquet into `bronze.landing/{taxi}`
 incrementally (only missing months; unpublished months 403/404 are skipped), `02_bronze.py` appends new
@@ -22,7 +23,7 @@ so a broken ingestion stops the deploy.
 - **Step 2 — extract + bronze:** `01_download.py` (TLC → volume via SDK Files API, incremental from 2023-01 to latest published month), `02_bronze.py` (parquet → bronze delta, append deduped by source_file + audit cols: audit_id per run, ingestion_timestamp, source_file), `03_verify.py` (reconcile landing vs bronze row counts per source_file, fail-fast on mismatch).
 - **Step 3 — silver:** `04_silver.py` — normalize tpep_/lpep_ → canonical timestamps, union yellow+green, type, `is_amount_valid` flag, derive pickup_hour/year/month. Use Liquid Clustering (year/month) over Hive partitioning. **Open: evaluate dbt** for silver/gold (SQL models + `dbt test`) — fits the star schema, but adds tooling; decide when starting this step.
 - **Step 4 — gold + analysis:** `05_gold.py` (dim_date, dim_vendor, dim_taxi_type, fact_trips, obt_trips) + `analysis/answers.sql` and `eda.ipynb`.
-- **Step 5 — orchestration:** Databricks Job DAG (Asset Bundle), params by range/type.
+- **Step 5 — orchestration:** replace the GitHub Actions `deploy` job (the Databricks Connect bridge) with a Databricks Job DAG defined as an **Asset Bundle** (`databricks.yml`), versioned in the repo. Tasks `setup → download → bronze → verify → silver → gold` run **inside** the workspace (driver downloads straight to the volume; workspace identity instead of a GitHub token), on a **monthly schedule** (picks up newly published TLC months), with per-task retries and failure alerts, params by range/type. CI keeps lint on PRs; the `deploy` job is retired here.
 - **Step 6 — readme + eda polish.**
 - **Step 7 — final review + delivery.**
 
