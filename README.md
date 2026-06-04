@@ -8,13 +8,11 @@
 
 </div>
 
----
-
 <div align="center">
-
 Medallion pipeline for the NYC TLC taxi dataset on Databricks Free Edition.
-
 </div>
+
+---
 
 ## 🗂️ Structure
 ```
