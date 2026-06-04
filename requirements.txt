@@ -1,0 +1,2 @@
+databricks-connect==18.2.1
+requests==2.34.2
