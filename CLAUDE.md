@@ -8,11 +8,15 @@ Personal project to learn Databricks: a medallion pipeline (bronze/silver/gold) 
 - docs/conventions.md — git convention
 - docs/data-model.md — modeling decisions + the 2 queries
 
+## Language
+- **All repo content is written in English**: commits, PR titles/bodies, code, comments, docs, issues. (Chat with the user stays in Portuguese.)
+
 ## Git rules
 - Conventional Commits: `<type>(<scope>): <desc>` (lowercase, imperative, no period). scopes: setup config ingest bronze silver gold analysis jobs
 - One PR per phase, squash merge. Run `ruff` before committing.
 - **Never commit directly to `main`** — always work on a branch and open a PR. Enforced by the pre-commit hook.
 - Before opening a PR, review that all files are current with the change — especially the Markdown (README, CLAUDE.md, docs/).
+- Every PR gets an assignee (`Bruno-Furtado`), labels (one `area:*` + one `type:*`), and the current phase milestone.
 
 ## Decisions
 - Local + Databricks run the same code via **Databricks Connect**: `get_spark()` = `DatabricksSession.builder.serverless(True).getOrCreate()` (Free Edition is serverless; needs `databricks-connect==18.1.*`).
