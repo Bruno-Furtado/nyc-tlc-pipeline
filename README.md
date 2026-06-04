@@ -54,3 +54,6 @@ A versioned hook in `.githooks/pre-commit` runs `ruff check src/` and blocks the
 ```
 git config core.hooksPath .githooks
 ```
+
+### CI
+GitHub Actions (`.github/workflows/ci.yml`) runs `ruff check` + `ruff format --check` on every PR — a server-side safety net for the hook.
