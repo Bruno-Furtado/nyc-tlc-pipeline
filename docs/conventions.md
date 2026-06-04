@@ -4,6 +4,7 @@
 `<type>(<scope>): <description>` — lowercase, imperative, no trailing period.
 - types: feat, fix, docs, chore, refactor, test, build, perf, style
 - scopes: setup, config, ingest, bronze, silver, gold, analysis, jobs
+- Signed with GPG (`commit.gpgsign = true`). The squash merge also yields a signed commit on `main`.
 
 ## Branch
 `<type>/<kebab-description>` — e.g. `feat/extract-bronze`.
