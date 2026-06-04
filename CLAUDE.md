@@ -1,0 +1,26 @@
+# nyc-tlc-pipeline
+
+Personal project to learn Databricks: a medallion pipeline (bronze/silver/gold) over the public NYC TLC taxi dataset, on Free Edition (serverless, Unity Catalog, Delta Lake).
+
+## Docs
+- docs/brief.md — goals & scope
+- docs/runbook.md — step-by-step plan + current state
+- docs/conventions.md — git convention
+- docs/data-model.md — modeling decisions + the 2 queries
+
+## Git rules
+- Conventional Commits: `<type>(<scope>): <desc>` (lowercase, imperative, no period). scopes: setup config ingest bronze silver gold analysis jobs
+- One PR per phase, squash merge. Run `ruff` before committing.
+- **Never commit directly to `main`** — always work on a branch and open a PR. Enforced by the pre-commit hook.
+- Before opening a PR, review that all files are current with the change — especially the Markdown (README, CLAUDE.md, docs/).
+
+## Decisions
+- Local + Databricks run the same code via **Databricks Connect**: `get_spark()` = `DatabricksSession.builder.getOrCreate()`.
+- Observability via Delta history (no `control` schema).
+- Scope: yellow + green, 2023 (Jan–May). Q1 = yellow only; Q2 = yellow+green, May.
+- Consumption columns: VendorID, passenger_count, total_amount, pickup_datetime, dropoff_datetime, taxi_type.
+- Canonical timestamps: tpep_*/lpep_* → pickup_datetime/dropoff_datetime in silver.
+- Negative total_amount: keep + flag `is_amount_valid` (don't filter).
+- Answers come from `gold.obt_trips`.
+- Dev/prod isolated by catalog via `NYC_TLC_CATALOG` (default `nyc_tlc_dev`) — Free Edition is one workspace.
+- Code: logging (not print), fail-fast errors with clear messages, type hints required (ruff E/F/I/ANN).
