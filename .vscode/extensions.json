@@ -1,0 +1,10 @@
+{
+  "recommendations": [
+    "ms-python.python",
+    "ms-python.vscode-pylance",
+    "charliermarsh.ruff",
+    "databricks.databricks",
+    "anthropic.claude-code",
+    "bierner.markdown-preview-github-styles"
+  ]
+}
