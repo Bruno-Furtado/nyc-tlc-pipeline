@@ -12,7 +12,7 @@ Never commit directly to `main` — all work happens on a branch (enforced by th
 
 ## Pull Request
 - Title in Conventional Commits (becomes the squash commit).
-- Body: **What / Why / Notes / Next**. One PR per phase.
+- Body: **What / Why / Notes**. One PR per phase.
 - Before opening, review that all files are current — especially the Markdown (README, CLAUDE.md, docs/).
 - **Assignee:** the PR author. **Reviewer:** n/a while solo (GitHub forbids the author reviewing their own PR).
 - **Milestone:** one per step, e.g. `Step 1 — setup`.
@@ -21,6 +21,10 @@ Never commit directly to `main` — all work happens on a branch (enforced by th
 
 ## Merge
 Squash and merge. One commit per PR, linear history on `main`.
+
+## Release
+Tag a release when a phase completes: git tag `vX.Y.Z` + a GitHub Release (e.g. `v0.1.0` at the
+end of setup). The tag marks the milestone; the release notes summarize what shipped.
 
 ## Before committing
 Run `ruff check src/` (and `ruff format src/`). Commit/push only when asked.
