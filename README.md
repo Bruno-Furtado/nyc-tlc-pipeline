@@ -60,3 +60,6 @@ git config core.hooksPath .githooks
 
 ### CI
 GitHub Actions (`.github/workflows/ci.yml`) runs `ruff check` + `ruff format --check` on every PR — a server-side safety net for the hook.
+
+## License
+Released under the MIT License. See [LICENSE](LICENSE).
