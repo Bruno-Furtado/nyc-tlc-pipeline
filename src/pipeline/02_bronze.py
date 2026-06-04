@@ -3,9 +3,10 @@
 Incremental append: each file lands once. New files (not yet in the table's
 source_file set) are read, lowercased (the TLC drifts column-name case), unioned,
 and appended. Spark resolves NullType and type/column differences across files via
-the union, so no per-type casts are needed. audit_id is one id per run (the
-load/batch), paired with ingestion_timestamp and source_file for lineage.
-Schema evolution is observable via Delta history (DESCRIBE HISTORY).
+the union; before appending we also cast the batch to the existing table's types,
+so type drift across months (e.g. vendorid Integer vs Long) doesn't break the merge.
+audit_id is one id per run (the load/batch), paired with ingestion_timestamp and
+source_file for lineage. Schema evolution is observable via Delta history.
 """
 
 from uuid import uuid4
@@ -66,6 +67,16 @@ def add_audit_columns(df: DataFrame, audit_id: str) -> DataFrame:
     )
 
 
+def conform_to_table(spark: SparkSession, df: DataFrame, table: str) -> DataFrame:
+    """Cast columns to the table's types so an incremental append survives type drift."""
+    if not spark.catalog.tableExists(table):
+        return df
+    for field in spark.table(table).schema:
+        if field.name in df.columns:
+            df = df.withColumn(field.name, df[field.name].cast(field.dataType))
+    return df
+
+
 def apply_metadata(spark: SparkSession, table: str, taxi: str) -> None:
     """Document the bronze table and its audit columns (idempotent)."""
     spark.sql(
@@ -99,6 +110,7 @@ def main() -> None:
 
         df = read_new_files(spark, volume_dir, new_files)
         df = add_audit_columns(df, run_audit_id)
+        df = conform_to_table(spark, df, table)
         df.write.mode("append").option("mergeSchema", "true").saveAsTable(table)
         apply_metadata(spark, table, taxi)
 
