@@ -1,11 +1,11 @@
 # Data model
 
 ## Medallion
-- **bronze** — `yellow_tripdata_raw`, `green_tripdata_raw`: faithful to source + audit_id, ingestion_timestamp, source_file.
-- **silver** — `taxi_trips`: yellow+green unified, canonical timestamps, typed, `is_amount_valid` flag. No business filter.
-- **gold** — star schema (`fact_trips` + `dim_date`, `dim_vendor`, `dim_taxi_type`) and `obt_trips` (serving). Answers use the OBT.
+- **bronze** — `yellow_tripdata_raw`, `green_tripdata_raw`: faithful to source + a `source_file` column.
+- **silver** — `taxi_trips`: yellow+green unified, canonical timestamps, typed, `is_amount_valid` flag. **Spark SQL, pure conformation — no filter** (every month and row kept). **Incremental by `source_file`**; **Liquid Clustered by `(year, month)`** taken from the file name (deterministic, immune to stray row dates).
+- **gold** — `obt_trips` (Spark SQL): the consumption table that applies the Jan–May 2023 scope + question rules + derived `year`/`month`/`hour`, and is the source of the answers.
 
-Observability via Delta history (`DESCRIBE HISTORY`). Load lineage via `audit_id` (one per ingestion run) + `source_file`.
+Observability via Delta history (`DESCRIBE HISTORY`). Load lineage via `source_file` on each row, plus Delta history (which already records each load's commit time).
 
 ## Metadata (comments & tags)
 Every Unity Catalog object carries metadata — set in `00_setup.sql` for catalog/schemas/volume,
@@ -19,16 +19,17 @@ and on tables and key columns as each layer is built. Both surface in **Catalog 
   `SET TAGS` rejects `IDENTIFIER(:catalog || '.<schema>')`, so we `USE CATALOG identifier(:catalog)`
   first and tag schemas by relative name.
 
-Keep comment/tag text free of `;` — the `00_setup.py` splitter breaks statements on semicolons.
+`config.run_sql_file` strips `--` line comments before splitting on `;`, but a `;` inside a string
+literal still splits — so keep `COMMENT`/`SET TAGS` text free of `;`.
 
 ## Decisions
 - **Yellow + green only** (NYC taxis; FHV/HVFHV aren't taxis, no passenger_count). Q1 = yellow; Q2 = yellow+green.
-- **Incremental scope:** from 2023-01 to the latest published month, both taxi types every month. The TLC publishes whole closed months with ~2 months' lag; unpublished months return 403/404 and are skipped.
+- **Ingestion scope:** download lands 2023-01 to the latest published month (both taxis); the TLC publishes whole closed months with ~2 months' lag, and unpublished months return 403/404 and are skipped. The **consumption scope (Jan–May 2023)** is applied in the gold OBT, not at ingestion.
 - **Canonical timestamps:** yellow `tpep_*`, green `lpep_*` → `pickup_datetime`/`dropoff_datetime` in silver.
 - **Negative total_amount kept** (refund/void = real revenue; payment_type 4/6). Flag `is_amount_valid`, don't filter.
-- **Star + OBT:** star = dimensional truth; OBT = join-free serving, faster on Delta.
-- **Bronze idempotency:** append incremental, deduped by `source_file` (one file lands once). `audit_id` is one id per ingestion run (the batch), paired with `ingestion_timestamp` + `source_file` for lineage.
-- **Silver/gold idempotency:** overwrite by year/month partition or MERGE by key.
+- **OBT (no full star):** the 2 questions are simple aggregates, so a single denormalized `obt_trips` serves them join-free. A star (fact + dimensions) would add tables the case doesn't need.
+- **Bronze idempotency:** append incremental, deduped by `source_file` (one file lands once). Lineage is `source_file` per row; the load itself is recorded in Delta history (no separate audit_id/ingestion_timestamp columns).
+- **Silver idempotency:** incremental by `source_file` — `create table if not exists` then `insert ... where source_file not in (silver)`, so only new files are added. Liquid Clustered by `(year, month)` from the file name.
 
 ## Queries
 ```sql
@@ -50,6 +51,17 @@ order by pickup_hour;
 ## FAQ
 - **Why medallion?** Auditing, reprocessing, engineering/analytics separation.
 - **Why Delta?** ACID, idempotent MERGE, schema enforcement, time travel.
-- **Star and OBT?** Star is the truth; OBT serves BI without joins.
+- **Why OBT (not a star)?** The 2 questions are simple aggregates; one denormalized OBT serves them join-free. A star adds dimensions the case doesn't need.
 - **Negative amounts?** Refund/void is real revenue; filtering biases the average.
-- **Lineage?** `audit_id` (per ingestion run) + `source_file` on each row, plus Delta history.
+- **Lineage?** `source_file` on each row, plus Delta history (which records each load's commit).
+
+## Scale notes
+The dataset is small, so the pipeline favours simplicity. At larger scale:
+- **Physical layout** lives on the query surfaces (silver/gold), not bronze — bronze is raw append, read
+  wholesale by the silver incremental. Silver is Liquid Clustered by `(year, month)`; the gold OBT would
+  be too. Bronze, if anything, would be partitioned by *ingest date* for file management, never by trip period.
+- **Incremental reads:** `where source_file not in (...)` is a logical incremental (only new files are
+  written) but a dynamic anti-join, so it still scans bronze — negligible at this size. True read pruning
+  needs a *static* partition filter: compute the new periods in the driver and issue literal
+  `where year=… and month=…` inserts against a period-partitioned bronze, or use Structured Streaming /
+  Delta Change Data Feed. Documented rather than built, since it adds no benefit at this volume.

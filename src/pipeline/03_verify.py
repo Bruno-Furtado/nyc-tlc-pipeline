@@ -4,7 +4,7 @@ Reconciles row counts per source_file between the landing volume and the bronze
 table. Fails fast (raises) on any mismatch so the deploy stops with a clear error.
 """
 
-from config import CATALOG, get_logger, get_spark
+from config import bronze_table, get_logger, get_spark, landing_dir
 from databricks.sdk import WorkspaceClient
 from pyspark.sql import SparkSession
 
@@ -38,8 +38,8 @@ def main() -> None:
     mismatches = []
 
     for taxi in TAXI_TYPES:
-        table = f"{CATALOG}.bronze.{taxi}_tripdata_raw"
-        volume_dir = f"/Volumes/{CATALOG}/bronze/landing/{taxi}"
+        table = bronze_table(taxi)
+        volume_dir = landing_dir(taxi)
         landing = landing_counts(spark, w, volume_dir)
         bronze = bronze_counts(spark, table)
         for name, parquet_rows in sorted(landing.items()):
