@@ -25,8 +25,9 @@
   - **Gold** (`05_gold.sql`/`05_gold_conform.sql`/`05_gold.py`): build `gold.obt_trips` —
     consumption columns + derived `year`/`month`/`pickup_hour`, Liquid Clustered by `(year, month)`,
     **no scope filter**.
-  - **Silver runner** (`04_silver.py` + `04_silver_conform.sql`): DDL gains `_source_version`; runner
-    reads each bronze table's new commits, conforms (Spark SQL over a temp view), appends.
+  - **Silver runner** (`04_silver.py` + `04_silver_conform.sql`): DDL gains `_source_version` (and
+    drops `source_file` — silver/gold derive `year`/`month` from it during conformation but don't
+    persist it); runner reads each bronze table's new commits, conforms (Spark SQL over a temp view), appends.
   - **Validation** in silver + gold: per-key count reconciliation + value asserts (fail-fast).
   - **Analysis** (`analysis/answers.sql`): the 2 queries, with the Jan–May 2023 scope applied here.
 - Step 5 — orchestration (Asset Bundle / Databricks Job; retire the Actions deploy bridge).
@@ -47,15 +48,16 @@ A medallion over the NYC TLC dataset, incremental at every hop.
 3. **Watermark.** Each target row carries `_source_version` = the Delta version of the source commit
    it came from; the watermark is `max(_source_version)`. Silver keeps one watermark per `taxi_type`
    (yellow and green are separate Delta tables with independent histories); gold keeps one (silver is
-   its only source).
+   its only source). `source_file` stays in bronze (ingestion idempotency + the `year`/`month` source);
+   silver/gold carry `year`/`month` + `_source_version`, not `source_file`.
 4. **Idempotency.** Reruns are no-ops: with no new commits the CDF read returns nothing, so nothing
    is appended.
-5. **Validation (fail-fast).** Count reconciliation per key (bronze↔silver by `source_file`,
-   silver↔gold by `(year, month)`) plus value asserts (e.g. non-null timestamps, `pickup_hour` in 0–23).
+5. **Validation (fail-fast).** Row-count reconciliation per period `(year, month)` (bronze↔silver,
+   silver↔gold) plus value asserts (e.g. non-null timestamps, `pickup_hour` in 0–23).
 6. **Business scope** (Jan–May 2023 + question rules) lives in `analysis/`, not in the tables, so the
    layers stay general and reusable.
-7. **Observability.** Delta history records every load; `source_file` and `_source_version` give
-   per-row lineage. No control schema.
+7. **Observability.** Delta history records every load; `source_file` (bronze) and `_source_version`
+   (silver/gold) give per-row lineage. No control schema.
 
 ## Checklist
 1. Download + bronze yellow & green. ✅

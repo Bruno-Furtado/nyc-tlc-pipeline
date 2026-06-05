@@ -2,12 +2,12 @@
 
 ## Medallion
 - **bronze** — `yellow_tripdata_raw`, `green_tripdata_raw`: faithful to source + a `source_file` column.
-- **silver** — `taxi_trips`: yellow+green unified, canonical timestamps, typed, `is_amount_valid` flag. **Spark SQL, pure conformation — no filter** (every month and row kept). **Liquid Clustered by `(year, month)`** taken from the file name (deterministic, immune to stray row dates).
+- **silver** — `taxi_trips`: yellow+green unified, canonical timestamps, typed, `is_amount_valid` flag. **Spark SQL, pure conformation — no filter** (every month and row kept). **Liquid Clustered by `(year, month)`**, parsed from the file name during conformation (deterministic, immune to stray row dates). Carries `year`/`month` + `_source_version`; **`source_file` is not propagated past bronze**.
 - **gold** — `obt_trips` (Spark SQL): a join-free consumption table — consumption columns + derived `year`/`month`/`pickup_hour`, Liquid Clustered by `(year, month)`. **No scope filter**; the Jan–May 2023 scope + question rules live in `analysis/`. Source of the answers.
 
 Both silver and gold are loaded **incrementally via Delta Change Data Feed** (read only the source's new commits), with a `_source_version` watermark column. See the runbook's *How it works*.
 
-Observability via Delta history (`DESCRIBE HISTORY`). Per-row lineage: `source_file` (bronze→silver) and `_source_version` (the CDF source version), plus Delta history (which already records each load's commit time).
+Observability via Delta history (`DESCRIBE HISTORY`). Per-row lineage: `source_file` (bronze only) and `_source_version` (the CDF source version on silver/gold), plus Delta history (which already records each load's commit time).
 
 ## Metadata (comments & tags)
 Every Unity Catalog object carries metadata — set in `00_setup.sql` for catalog/schemas/volume,
@@ -30,8 +30,9 @@ literal still splits — so keep `COMMENT`/`SET TAGS` text free of `;`.
 - **Canonical timestamps:** yellow `tpep_*`, green `lpep_*` → `pickup_datetime`/`dropoff_datetime` in silver.
 - **Negative total_amount kept** (refund/void = real revenue; payment_type 4/6). Flag `is_amount_valid`, don't filter.
 - **OBT (no full star):** the 2 questions are simple aggregates, so a single denormalized `obt_trips` serves them join-free. A star (fact + dimensions) would add tables the case doesn't need.
-- **Bronze idempotency:** append incremental, deduped by `source_file` (one file lands once). Lineage is `source_file` per row; the load itself is recorded in Delta history.
+- **`source_file` in bronze only.** It is the bronze ingestion idempotency key (append, deduped by name — one file lands once), the source of `year`/`month` (parsed from the name), and fine-grained row→file lineage. Silver/gold derive `year`/`month` from it during conformation but don't persist it; they carry `year`/`month` + `_source_version`. Reverse lookup when needed: `_source_version` locates the bronze commit, where `source_file` lives.
 - **Silver/gold idempotency:** incremental via **Delta Change Data Feed**. Each target reads only its source's new commits (`readChangeFeed` from `watermark + 1`), bootstrapping with a full read on the first run; reruns with no new commits are no-ops. The watermark is a `_source_version` column (= the source Delta version each row came from); `max(_source_version)` is the resume point — one per `taxi_type` in silver (yellow/green are separate tables), one in gold. This replaced the earlier `source_file not in (...)` anti-join, which full-scanned the source.
+- **Validation, fail-fast:** row-count reconciliation per period `(year, month)` (bronze↔silver, silver↔gold) plus value asserts. Reconciling by period (not by `source_file`) is the trade-off for dropping `source_file` from silver — `taxi_type` narrows it, and bronze still has the per-file detail.
 
 ## Queries
 ```sql
@@ -55,7 +56,7 @@ order by pickup_hour;
 - **Why Delta?** ACID, idempotent MERGE, schema enforcement, time travel.
 - **Why OBT (not a star)?** The 2 questions are simple aggregates; one denormalized OBT serves them join-free. A star adds dimensions the case doesn't need.
 - **Negative amounts?** Refund/void is real revenue; filtering biases the average.
-- **Lineage?** `source_file` on each row (bronze→silver) and `_source_version` (the CDF source version on silver/gold), plus Delta history (which records each load's commit).
+- **Lineage?** `source_file` per row in bronze (fine-grained row→file) and `_source_version` on silver/gold (the CDF source version), plus Delta history (which records each load's commit). To trace a silver/gold row to its file, `_source_version` points at the bronze commit.
 
 ## Scale notes
 - **Incremental reads** are Delta-native: silver/gold consume only their source's new commits via
