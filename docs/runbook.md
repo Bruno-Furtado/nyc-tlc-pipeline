@@ -43,3 +43,17 @@ no filter; scope and rules are deferred to the gold OBT.
 6. Observability: Delta history + `source_file` lineage.
 7. Job DAG versioned.
 8. README with run steps + rationale.
+
+## Open questions / tech debt
+Tackle **after** the delivery steps are complete, as value-adds — not before.
+
+1. **Rework the incremental strategy for large scale.** Both incrementals assume a small dataset.
+   Silver (`04_silver.sql`) finds new files with `source_file not in (select distinct source_file
+   from silver.taxi_trips)` — a full scan of bronze every run; bronze (`02_bronze.py`) lists the
+   landing dir and diffs against `select distinct source_file`, reading parquet file-by-file. At
+   scale a run must touch only unprocessed data. Evaluate: partition/cluster bronze by period, a
+   high-water-mark on `(year, month)`, native file-tracking (Auto Loader / `COPY INTO`), or Delta
+   history (`DESCRIBE HISTORY` / last-load timestamp). Pick one for **both** layers and confirm fit.
+2. **Trim comments — lighter, less AI-sounding.** Review and minimize comments across the SQL and
+   Python (notably the `04_silver.sql` header and the `02_bronze.py` docstring): keep what guides
+   the reader, drop the rest.
