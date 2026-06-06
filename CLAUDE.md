@@ -4,7 +4,6 @@ Personal project to learn Databricks: a medallion pipeline (bronze/silver/gold) 
 
 ## Docs
 - docs/brief.md: goals & scope
-- docs/runbook.md: step-by-step plan + current state
 - docs/conventions.md: git convention
 - docs/data-model.md: modeling decisions + the 2 queries
 
