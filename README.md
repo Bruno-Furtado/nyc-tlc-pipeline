@@ -12,8 +12,19 @@
 Medallion pipeline for the NYC TLC taxi dataset on Databricks Free Edition.
 </div>
 
-## 🎬 Demo
+## 🚀 Setup & run
 The same pipeline runs two ways.
+
+> **Requires** Python 3.12 and the [Databricks CLI](https://docs.databricks.com/dev-tools/cli/install.html).
+> On macOS: `brew tap databricks/tap && brew install databricks`.
+
+Setup (once):
+
+```bash
+python3.12 -m venv .venv && source .venv/bin/activate
+pip install -r requirements.txt -r requirements-dev.txt
+databricks auth login --host <workspace-url>
+```
 
 **Local**: one command runs every step (Databricks Connect, the fast dev loop):
 
@@ -30,6 +41,7 @@ python src/pipeline/run.py
 **Production**: the same pipeline as an orchestrated Databricks Job:
 
 ```bash
+databricks bundle deploy --target prod
 databricks bundle run nyc_tlc_pipeline --target prod
 ```
 
@@ -62,29 +74,10 @@ resources/              # the Databricks Jobs (pipeline DAG + reset)
 databricks.yml          # asset bundle: targets + the jobs
 ```
 
-## 🌎 Environments & Dev
+## 🗄️ Environments
 Free Edition is one workspace, so environments are just **separate catalogs**:
-- **`nyc_tlc_dev`**: dev, the default target.
-- **`nyc_tlc`**: prod. Merging to `main` deploys here.
-
-The pipeline runs as a **Databricks Job** versioned as an **Asset Bundle**, deployed per target.
-
-```bash
-# setup (once)
-python3.12 -m venv .venv && source .venv/bin/activate
-pip install -r requirements.txt -r requirements-dev.txt
-databricks auth login --host <workspace-url>
-
-# dev run
-python src/pipeline/run.py
-
-# dev job (deploy + run on the dev catalog)
-databricks bundle deploy --target dev
-databricks bundle run nyc_tlc_pipeline --target dev
-
-# start fresh (drop the catalog)
-databricks bundle run nyc_tlc_reset --target dev
-```
+- **`nyc_tlc_dev`**: `dev` (the default target).
+- **`nyc_tlc`**: `prod` (merging to main deploys here).
 
 ## 🏗️ How it works
 A medallion pipeline, incremental at every hop via Delta Change Data Feed. Full rationale in [docs/data-model.md](docs/data-model.md).
@@ -96,6 +89,9 @@ A medallion pipeline, incremental at every hop via Delta Change Data Feed. Full 
 5. **Analysis**: two SQL queries answer the questions (the Jan–May 2023 scope lives here).
 
 In production run as a Databricks Job: a linear DAG on Databricks Workflows.
+
+## 🤖 Reviewed by a Claude subagent
+A read-only [data-engineering reviewer](.claude/agents/data-engineering-reviewer.md) audits the diff before every PR: Spark/Delta/CDF correctness, serverless cost, data quality, medallion rules, and Unity Catalog governance.
 
 ---
 
