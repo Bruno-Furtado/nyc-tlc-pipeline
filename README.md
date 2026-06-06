@@ -29,11 +29,11 @@ src/pipeline/
 ├─ config.py       # spark, catalog, CDF helpers
 ├─ 00_setup.py     # catalog, schemas, volume
 ├─ 01_download.py  # land TLC parquet
-├─ 02_bronze.py    # land → bronze   (CDF on)
+├─ 02_bronze.py    # land → bronze (CDF on)
 ├─ 03_verify.py    # check bronze
 ├─ 04_silver.py    # bronze → silver (conform)
 ├─ 05_verify.py    # check silver
-├─ 06_gold.py      # silver → gold   (OBT)
+├─ 06_gold.py      # silver → gold (OBT)
 ├─ 07_verify.py    # check gold
 ├─ run.py          # run all, interactive
 └─ reset.py        # drop the catalog
@@ -45,29 +45,38 @@ docs/              # brief, plan, conventions, data model
 ## 🏗️ Design decisions
 Full rationale in [docs/data-model.md](docs/data-model.md).
 - **Incremental via Delta CDF**: reads only new commits; scales with the delta, not the table.
-- **Idempotent ingest**: `distinct(source_file)` + atomic append (no file moves, no control table).
+- **Idempotent ingest**: `distinct(source_file)` + atomic append.
 - **OBT, not a star**: the two questions are simple aggregates.
 - **Spark SQL transforms**: PySpark only for ingestion and the CDF plumbing.
 
 ## 🧑‍💻 Dev
-Local via Databricks Connect (no Spark/Java/Delta installed); the **dev** catalog by default.
+Local via Databricks Connect.
 ```bash
-python3.12 -m venv .venv && source .venv/bin/activate   # databricks-connect needs 3.12
+# env
+python3.12 -m venv .venv
+source .venv/bin/activate
 pip install -r requirements.txt -r requirements-dev.txt
-databricks auth login --host <workspace-url>            # via the databricks CLI
-python src/pipeline/run.py                              # run everything (interactive)
+
+# databricks CLI
+databricks auth login --host <workspace-url>
+
+# run everything
+python src/pipeline/run.py
 ```
 Lint before committing, or start fresh:
 ```bash
-ruff check src/ && ruff format src/
-python src/pipeline/reset.py        # drop the whole catalog (destructive)
+# lint
+ruff check src/
+ruff format src/
+
+# start fresh
+python src/pipeline/reset.py
 ```
 
 ## 🚀 Deploy
-One workspace, so dev/prod are split by **catalog**: `nyc_tlc_dev` (default) and `nyc_tlc` (prod, run on merge to `main`). CI runs `ruff check` + `ruff format --check` on every PR.
-```bash
-NYC_TLC_CATALOG=nyc_tlc python src/pipeline/reset.py   # one-off prod reset (doesn't change your shell)
-```
+Free Edition is one workspace, so environments are just **separate catalogs**:
+- **`nyc_tlc_dev`**: local/dev (the default).
+- **`nyc_tlc`**: prod. Merging to `main` runs the pipeline here automatically.
 
 ---
 
