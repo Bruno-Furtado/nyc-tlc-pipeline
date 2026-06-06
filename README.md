@@ -13,11 +13,11 @@ Medallion pipeline for the NYC TLC taxi dataset on Databricks Free Edition.
 </div>
 
 ## 🎬 Demo
-The whole pipeline from one interactive command (`run.py`): pick the environment and an optional month range, then it runs every step in order.
+One command: pick env + month range, it runs every step.
 
 <div align="center">
 
-https://github.com/user-attachments/assets/bbdf66f9-4608-4184-b2eb-bca1498fb5c5
+![demo](https://github.com/user-attachments/assets/f78c6380-3178-415f-9d33-5f9c5d0f9d53)
 
 </div>
 
@@ -25,94 +25,58 @@ https://github.com/user-attachments/assets/bbdf66f9-4608-4184-b2eb-bca1498fb5c5
 
 ## 🗂️ Structure
 ```
-src/
-├─ pipeline/
-│  ├─ config.py       # catalog, spark/logger, landing/bronze helpers, run_sql_file, CDF helpers
-│  ├─ 00_setup.py     # provision catalog, schemas, landing volume (runs 00_setup.sql)
-│  ├─ 01_download.py  # land TLC parquet into bronze.landing (incremental)
-│  ├─ 02_bronze.py    # append new files into bronze Delta, PySpark (source_file lineage, CDF on)
-│  ├─ 03_verify.py    # reconcile landing vs bronze row counts (fail-fast)
-│  ├─ 04_silver.py    # conform bronze CDF into silver.taxi_trips (incremental, per-taxi watermark)
-│  ├─ 05_verify.py    # reconcile bronze vs silver row counts per taxi_type (fail-fast)
-│  ├─ 06_gold.py      # conform silver CDF into gold.obt_trips (incremental, single watermark)
-│  ├─ 07_verify.py    # reconcile silver vs gold row counts per taxi_type (fail-fast)
-│  ├─ run.py          # run the whole pipeline, interactive (asks env + month range)
-│  └─ reset.py        # drop the whole catalog (schemas+tables+volumes+files) for a clean re-test
-└─ sql/
-   ├─ 00_setup.sql           # catalog, schemas, landing volume
-   ├─ 02_bronze.sql          # bronze table comments + tags
-   ├─ 04_silver.sql          # silver DDL + metadata (table, CDF, clustering, comments/tags)
-   ├─ 04_silver_conform.sql  # conform a bronze CDF batch into silver (parametrized per taxi)
-   ├─ 06_gold.sql            # gold obt_trips DDL + metadata (table, clustering, comments/tags)
-   └─ 06_gold_conform.sql    # conform a silver CDF batch into gold.obt_trips
-analysis/
-├─ q1_total_amount.sql  # Q1: avg total_amount per month (yellow, Jan-May 2023)
-└─ q2_passengers.sql    # Q2: avg passengers per pickup hour (May 2023)
-docs/                 # goals, plan, conventions, data model
+src/pipeline/
+├─ config.py       # spark, catalog, CDF helpers
+├─ 00_setup.py     # catalog, schemas, volume
+├─ 01_download.py  # land TLC parquet
+├─ 02_bronze.py    # land → bronze (CDF on)
+├─ 03_verify.py    # check bronze
+├─ 04_silver.py    # bronze → silver (conform)
+├─ 05_verify.py    # check silver
+├─ 06_gold.py      # silver → gold (OBT)
+├─ 07_verify.py    # check gold
+├─ run.py          # run all, interactive
+└─ reset.py        # drop the catalog
+src/sql/           # DDL + conform SQL per layer
+analysis/          # the two answer queries (Q1, Q2)
+docs/              # brief, plan, conventions, data model
 ```
 
 ## 🏗️ Design decisions
-Main trade-offs (full rationale in [docs/data-model.md](docs/data-model.md)):
-- **Incremental via Delta Change Data Feed**, not a full-scan anti-join and not Auto Loader/DLT (Structured Streaming is limited on Free Edition with Databricks Connect; batch stays reproducible). Scales with the delta, not the table size.
-- **Ingestion idempotency is `distinct(source_file)` + an atomic append**, not a `processed` archive or a control table (both can desync on a failed run).
-- **OBT (`obt_trips`), not a star schema**, for two simple aggregate questions.
-- **Transforms in Spark SQL; PySpark only for ingestion and the CDF plumbing.**
+Full rationale in [docs/data-model.md](docs/data-model.md).
+- **Incremental via Delta CDF**: reads only new commits; scales with the delta, not the table.
+- **Idempotent ingest**: `distinct(source_file)` + atomic append.
+- **OBT, not a star**: the two questions are simple aggregates.
+- **Spark SQL transforms**: PySpark only for ingestion and the CDF plumbing.
 
 ## 🧑‍💻 Dev
-Built in VSCode with Claude Code (see `.vscode/extensions.json` for recommended extensions).
-
-Runs locally via Databricks Connect; targets the **dev** catalog (`nyc_tlc_dev`) by default.
-```
-# 1. virtualenv — must be Python 3.12 (databricks-connect requires it)
-python3.12 -m venv .venv && source .venv/bin/activate
-
-# 2. dependencies (runtime + ruff for linting)
+Local via Databricks Connect.
+```bash
+# env
+python3.12 -m venv .venv
+source .venv/bin/activate
 pip install -r requirements.txt -r requirements-dev.txt
 
-# 3. Databricks CLI + auth
-brew tap databricks/tap && brew install databricks
+# databricks CLI
 databricks auth login --host <workspace-url>
 
-# 4. run the whole pipeline — interactive (asks for env: dev/prod, and an optional month range)
+# run everything
 python src/pipeline/run.py
-# then run the analysis/*.sql queries against the gold catalog for the 2 answers
 ```
+Lint before committing, or start fresh:
+```bash
+# lint
+ruff check src/
+ruff format src/
 
-To start over, `reset.py` drops the whole target catalog (schemas, tables, volumes, files):
+# start fresh
+python src/pipeline/reset.py
 ```
-python src/pipeline/reset.py     # destructive, honors NYC_TLC_CATALOG (default nyc_tlc_dev)
-```
-
-### Lint
-Config in `ruff.toml`. Run before committing:
-```
-ruff check src/          # report issues
-ruff check --fix src/    # auto-fix what's safe (incl. import sorting)
-ruff format src/         # format code
-```
-
-> No local PySpark/Java/Delta needed, `databricks-connect` ships the client.
 
 ## 🚀 Deploy
-Free Edition is a single workspace, so dev/prod are isolated by **catalog**:
-```
-nyc_tlc_dev   # default, local/testing
-nyc_tlc       # production, auto-deployed on merge to main
-```
-
-To reset **prod** (one-off, without changing your shell — the pipeline itself runs on merge):
-```
-NYC_TLC_CATALOG=nyc_tlc python src/pipeline/reset.py
-```
-
-### CI
-GitHub Actions (`.github/workflows/ci.yml`) runs on every PR:
-```
-ruff check src/
-ruff format --check src/
-```
-
-> Merging a PR into `main` runs the pipeline against **prod** automatically.
+Free Edition is one workspace, so environments are just **separate catalogs**:
+- **`nyc_tlc_dev`**: local/dev (the default).
+- **`nyc_tlc`**: prod. Merging to `main` runs the pipeline here automatically.
 
 ---
 
