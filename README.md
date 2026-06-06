@@ -52,8 +52,6 @@ databricks bundle run nyc_tlc_pipeline --target prod
 </div>
 
 > **Requires** Python 3.12 and the [Databricks CLI](https://docs.databricks.com/dev-tools/cli/install.html).
-> 
-> On macOS: `brew tap databricks/tap && brew install databricks`.
 
 ---
 
