@@ -4,7 +4,7 @@
 
 [![CI](https://github.com/Bruno-Furtado/nyc-tlc-pipeline/actions/workflows/ci.yml/badge.svg)](https://github.com/Bruno-Furtado/nyc-tlc-pipeline/actions/workflows/ci.yml) ![Ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)
 
-![Databricks](https://img.shields.io/badge/compute-Databricks-8B5CF6?style=flat) ![Apache Spark](https://img.shields.io/badge/compute-Apache_Spark-8B5CF6?style=flat) ![Delta Lake](https://img.shields.io/badge/data-Delta_Lake-3B82F6?style=flat) ![Unity Catalog](https://img.shields.io/badge/data-Unity_Catalog-3B82F6?style=flat) ![Delta History](https://img.shields.io/badge/observability-Delta_History-F97316?style=flat) ![Python](https://img.shields.io/badge/lang-Python-EAB308?style=flat) ![SQL](https://img.shields.io/badge/lang-SQL-EAB308?style=flat)
+![Databricks](https://img.shields.io/badge/compute-Databricks-8B5CF6?style=flat) ![Apache Spark](https://img.shields.io/badge/compute-Apache_Spark-8B5CF6?style=flat) ![Delta Lake](https://img.shields.io/badge/data-Delta_Lake-3B82F6?style=flat) ![Unity Catalog](https://img.shields.io/badge/data-Unity_Catalog-3B82F6?style=flat) ![Databricks Asset Bundles](https://img.shields.io/badge/orchestration-Asset_Bundles-22C55E?style=flat) ![Databricks Workflows](https://img.shields.io/badge/orchestration-Workflows-22C55E?style=flat) ![Delta History](https://img.shields.io/badge/observability-Delta_History-F97316?style=flat) ![Python](https://img.shields.io/badge/lang-Python-EAB308?style=flat) ![SQL](https://img.shields.io/badge/lang-SQL-EAB308?style=flat)
 
 </div>
 
@@ -13,26 +13,30 @@ Medallion pipeline for the NYC TLC taxi dataset on Databricks Free Edition.
 </div>
 
 ## 🎬 Demo
-Same pipeline, two ways to run it: **locally without a job** (just Databricks Connect, the fast dev loop), or **as an orchestrated Databricks Job** (the versioned DAG, here in prod).
+The same pipeline runs two ways.
 
-**Local**: one command picks env + month range and runs every step:
+**Local**: one command runs every step (Databricks Connect, the fast dev loop):
 
 ```bash
 python src/pipeline/run.py
 ```
 
 <div align="center">
+
 ![demo](https://github.com/user-attachments/assets/f78c6380-3178-415f-9d33-5f9c5d0f9d53)
+
 </div>
 
-**Production**: the same pipeline triggered as the Job, on demand:
+**Production**: the same pipeline as an orchestrated Databricks Job:
 
 ```bash
 databricks bundle run nyc_tlc_pipeline --target prod
 ```
 
 <div align="center">
+
 ![demo](https://github.com/user-attachments/assets/957befae-093e-4514-866e-822757cc86cd)
+
 </div>
 
 ---
@@ -83,13 +87,15 @@ databricks bundle run nyc_tlc_reset --target dev
 ```
 
 ## 🏗️ How it works
-A medallion pipeline, incremental at every hop via Delta CDF. Full rationale in [docs/data-model.md](docs/data-model.md).
+A medallion pipeline, incremental at every hop via Delta Change Data Feed. Full rationale in [docs/data-model.md](docs/data-model.md).
 
-1. **Download**: land the TLC parquet in a volume; idempotent (`distinct(source_file)` + atomic append).
-2. **Bronze**: raw, faithful to source (`source_file` added, Change Data Feed on).
-3. **Silver**: conform yellow + green (canonical timestamps, typed columns, `is_amount_valid`).
-4. **Gold**: `obt_trips`, a join-free OBT (consumption columns + `year`/`month`/`pickup_hour`).
+1. **Download**: land the TLC parquet in a volume; idempotent (distinct source file + atomic append).
+2. **Bronze**: raw, faithful to source (adds source file, Change Data Feed on).
+3. **Silver**: conform yellow and green (canonical timestamps, typed columns, `is_amount_valid`).
+4. **Gold**: a join-free OBT (consumption columns + year, month and pickup hour).
 5. **Analysis**: two SQL queries answer the questions (the Jan–May 2023 scope lives here).
+
+In production run as a Databricks Job: a linear DAG on Databricks Workflows.
 
 ---
 
