@@ -1,15 +1,19 @@
 """Download NYC TLC parquet files into the bronze landing volume.
 
-For each month from START to the latest published one, upload the file if it isn't
-in the landing zone yet. The TLC CloudFront never returns 404 (a missing file and a
-rate limit both answer 403 with no Retry-After), so we discover the latest published
-month first and then fail loudly on any non-200 within that range (it can only be
-throttling, never missing data). Requests back off exponentially on 403/429/5xx.
+For each month in the range, upload the file if it isn't in the landing zone yet. The range is
+[NYC_TLC_START, NYC_TLC_END] (env vars, `YYYY-MM`): START defaults to 2023-01 (where the dataset
+begins), and when END is unset the range ends at the latest published month. A month is handled as a
+running index (year*12 + month), so building the range and stepping back are plain integer
+arithmetic. The TLC CloudFront never returns 404 (a missing file and a rate limit both answer 403
+with no Retry-After), so we discover the latest published month first and then fail loudly on any
+non-200 within the range (it can only be throttling, never missing data). Requests back off
+exponentially on 403/429/5xx.
 
 Functions are ordered by the call sequence (callers before the helpers they call); main, the
 entry point, sits at the bottom.
 """
 
+import os
 import time
 from datetime import date
 from io import BytesIO
@@ -21,8 +25,9 @@ from databricks.sdk import WorkspaceClient
 logger = get_logger(__name__)
 
 BASE_URL = "https://d37ci6vzurychx.cloudfront.net/trip-data"
-START = (2023, 1)
 TAXI_TYPES = ("yellow", "green")
+START = os.environ.get("NYC_TLC_START", "2023-01")  # "YYYY-MM"; the dataset begins 2023-01
+END = os.environ.get("NYC_TLC_END")  # "YYYY-MM", or None => up to the latest published month
 MAX_RETRIES = 10
 MAX_BACKOFF_SECONDS = 90
 LOOKBACK_MONTHS = 6
@@ -33,12 +38,12 @@ SESSION.headers.update({"User-Agent": "nyc-tlc-pipeline"})
 
 
 def download_taxi(w: WorkspaceClient, taxi: str) -> None:
-    """Land every published, not-yet-landed file for one taxi."""
-    end = latest_published(taxi)
-    logger.info("%s: latest published month is %04d-%02d", taxi, *end)
+    """Land every published, not-yet-landed file for one taxi over the configured range."""
+    end = END or latest_published(taxi)
+    logger.info("%s: range %s to %s", taxi, START, end)
     volume_dir = landing_dir(taxi)
     landed = existing_files(w, volume_dir)
-    for ym in months_range(end):
+    for ym in months_range(START, end):
         filename = filename_for(taxi, ym)
         if filename in landed:
             logger.info("skip (already landed): %s", filename)
@@ -47,15 +52,14 @@ def download_taxi(w: WorkspaceClient, taxi: str) -> None:
         time.sleep(PACING_SECONDS)
 
 
-def latest_published(taxi: str) -> tuple[int, int]:
-    """Most recent published month, walking back from today (403 = not published yet, no retry)."""
-    ym = (date.today().year, date.today().month)
+def latest_published(taxi: str) -> str:
+    """Most recent published month (YYYY-MM), walking back from today (403 = not published yet)."""
+    index = to_index(date.today().strftime("%Y-%m"))
     for _ in range(LOOKBACK_MONTHS):
-        url = url_for(taxi, ym)
-        response = SESSION.head(url, timeout=60)
-        if response.status_code == 200:
+        ym = to_month(index)
+        if SESSION.head(url_for(taxi, ym), timeout=60).status_code == 200:
             return ym
-        ym = prev_month(ym)
+        index -= 1
     raise RuntimeError(f"no published {taxi} file found in the last {LOOKBACK_MONTHS} months")
 
 
@@ -67,17 +71,12 @@ def existing_files(w: WorkspaceClient, volume_dir: str) -> set[str]:
         return set()
 
 
-def months_range(end: tuple[int, int]) -> list[tuple[int, int]]:
-    """Every (year, month) from START up to and including end."""
-    months = []
-    ym = START
-    while ym <= end:
-        months.append(ym)
-        ym = next_month(ym)
-    return months
+def months_range(start: str, end: str) -> list[str]:
+    """Every month (YYYY-MM) in [start, end], inclusive."""
+    return [to_month(i) for i in range(to_index(start), to_index(end) + 1)]
 
 
-def download_month(w: WorkspaceClient, taxi: str, ym: tuple[int, int], volume_dir: str) -> None:
+def download_month(w: WorkspaceClient, taxi: str, ym: str, volume_dir: str) -> None:
     """Download one month's file into the landing volume (fail loudly on non-200)."""
     filename = filename_for(taxi, ym)
     url = url_for(taxi, ym)
@@ -107,30 +106,30 @@ def request(url: str) -> requests.Response:
     return response
 
 
-def url_for(taxi: str, ym: tuple[int, int]) -> str:
+def url_for(taxi: str, ym: str) -> str:
     """CloudFront URL for a taxi type and month."""
     return f"{BASE_URL}/{filename_for(taxi, ym)}"
 
 
-def filename_for(taxi: str, ym: tuple[int, int]) -> str:
-    """Parquet file name for a taxi type and month."""
-    return f"{taxi}_tripdata_{ym[0]:04d}-{ym[1]:02d}.parquet"
+def filename_for(taxi: str, ym: str) -> str:
+    """Parquet file name for a taxi type and month (YYYY-MM)."""
+    return f"{taxi}_tripdata_{ym}.parquet"
 
 
-def next_month(ym: tuple[int, int]) -> tuple[int, int]:
-    """The (year, month) after ym."""
-    year, month = ym
-    return (year + 1, 1) if month == 12 else (year, month + 1)
+def to_index(ym: str) -> int:
+    """YYYY-MM -> a running month number, so range and stepping are integer arithmetic."""
+    year, month = map(int, ym.split("-"))
+    return year * 12 + month - 1
 
 
-def prev_month(ym: tuple[int, int]) -> tuple[int, int]:
-    """The (year, month) before ym."""
-    year, month = ym
-    return (year - 1, 12) if month == 1 else (year, month - 1)
+def to_month(index: int) -> str:
+    """Inverse of to_index: a running month number -> YYYY-MM."""
+    year, month = divmod(index, 12)
+    return f"{year}-{month + 1:02d}"
 
 
 def main() -> None:
-    """Download every published, not-yet-landed TLC file into the landing volume."""
+    """Download every published, not-yet-landed TLC file in the range into the landing volume."""
     w = WorkspaceClient()
     for taxi in TAXI_TYPES:
         download_taxi(w, taxi)
