@@ -12,9 +12,9 @@
 Medallion pipeline for the NYC TLC taxi dataset on Databricks Free Edition.
 </div>
 
-## 🚀 Setup & Run
+## 🚀 Setup & run
 
-### Initial Setup:
+### Setup
 
 ```bash
 python3.12 -m venv .venv && source .venv/bin/activate
@@ -56,6 +56,7 @@ databricks bundle run nyc_tlc_pipeline --target prod
 ---
 
 ## 🗂️ Structure
+
 ```
 src/pipeline/
 ├─ config.py            # spark, catalog, CDF helpers
@@ -77,11 +78,13 @@ databricks.yml          # asset bundle: targets + the jobs
 ```
 
 ## 🗄️ Environments
+
 Free Edition is one workspace, so environments are just **separate catalogs**:
 - **`nyc_tlc_dev`**: `dev` (the default target).
 - **`nyc_tlc`**: `prod` (merging to main deploys here).
 
 ## 🏗️ How it works
+
 A medallion pipeline, incremental at every hop via Delta Change Data Feed. Full rationale in [docs/data-model.md](docs/data-model.md).
 
 1. **Download**: land the TLC parquet in a volume; idempotent (distinct source file + atomic append).
@@ -90,10 +93,11 @@ A medallion pipeline, incremental at every hop via Delta Change Data Feed. Full 
 4. **Gold**: a join-free OBT (consumption columns + year, month and pickup hour).
 5. **Analysis**: two SQL queries answer the questions (the Jan–May 2023 scope lives here).
 
-In production run as a Databricks Job: a linear DAG on Databricks Workflows.
+> In production run as a Databricks Job: a linear DAG on Databricks Workflows.
 
-## 🤖 Reviewed by a Claude subagent
-A read-only [data-engineering reviewer](.claude/agents/data-engineering-reviewer.md) audits the diff before every PR: Spark/Delta/CDF correctness, serverless cost, data quality, medallion rules, and Unity Catalog governance.
+## 🤖 Claude subagent
+
+A read-only [data-engineering reviewer](.claude/agents/data-engineering-reviewer.md) audits the diff before every PR.
 
 ---
 
