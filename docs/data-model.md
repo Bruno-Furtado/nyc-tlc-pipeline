@@ -26,7 +26,7 @@ and on tables and key columns as each layer is built. Both surface in **Catalog 
 
 ## Decisions
 - **Yellow + green only** (NYC taxis; FHV/HVFHV aren't taxis, no passenger_count). Q1 = yellow; Q2 = yellow+green.
-- **Ingestion scope:** download lands 2023-01 to the latest published month (both taxis); the TLC publishes whole closed months with ~2 months' lag, and unpublished months return 403/404 and are skipped. The **consumption scope (Jan–May 2023)** is applied in `analysis/answers.sql`, not at ingestion and not in the tables.
+- **Ingestion scope:** download lands 2023-01 to the latest published month (both taxis); the TLC publishes whole closed months with ~2 months' lag, and unpublished months return 403/404 and are skipped. The **consumption scope (Jan–May 2023)** is applied in the `analysis/` queries (one `.sql` per question), not at ingestion and not in the tables.
 - **Canonical timestamps:** yellow `tpep_*`, green `lpep_*` → `pickup_datetime`/`dropoff_datetime` in silver.
 - **Negative total_amount kept** (refund/void = real revenue; payment_type 4/6). Flag `is_amount_valid`, don't filter.
 - **OBT (no full star):** the 2 questions are simple aggregates, so a single denormalized `obt_trips` serves them join-free. A star (fact + dimensions) would add tables the case doesn't need.

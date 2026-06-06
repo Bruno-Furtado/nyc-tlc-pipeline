@@ -36,7 +36,8 @@ src/
    ├─ 06_gold.sql            # gold obt_trips DDL + metadata (table, clustering, comments/tags)
    └─ 06_gold_conform.sql    # conform a silver CDF batch into gold.obt_trips
 analysis/
-└─ answers.sql        # the 2 questions, with the Jan-May 2023 scope applied here
+├─ q1_total_amount.sql  # Q1: avg total_amount per month (yellow, Jan-May 2023)
+└─ q2_passengers.sql    # Q2: avg passengers per pickup hour (May 2023)
 docs/                 # goals, plan, conventions, data model
 ```
 
@@ -73,7 +74,7 @@ python src/pipeline/04_silver.py
 python src/pipeline/05_verify.py
 python src/pipeline/06_gold.py
 python src/pipeline/07_verify.py
-# then run analysis/answers.sql against the gold catalog for the 2 answers
+# then run the analysis/*.sql queries against the gold catalog for the 2 answers
 ```
 
 To start from a clean slate, `reset.py` drops the whole target catalog (schemas, tables, volumes,

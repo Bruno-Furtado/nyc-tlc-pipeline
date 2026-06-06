@@ -15,7 +15,7 @@
   reconciles bronze↔silver counts (see How it works).
 - **Step 4 — gold + analysis** (this PR): `06_gold` conforms the silver CDF into `gold.obt_trips`
   (a join-free OBT: consumption columns + derived `year`/`month`/`pickup_hour`, single watermark, no
-  scope filter); `07_verify.py` reconciles silver↔gold counts; `analysis/answers.sql` answers the 2
+  scope filter); `07_verify.py` reconciles silver↔gold counts; `analysis/*.sql` answers the 2
   questions with the Jan–May 2023 scope applied there.
 - Merge to `main` auto-deploys to prod via the GitHub Actions `deploy` job (temporary bridge, retired in Step 5).
 
@@ -34,7 +34,7 @@
   - **Gold + analysis** (this PR): `06_gold.*` builds `gold.obt_trips` (consumption columns + derived
     `year`/`month`/`pickup_hour`, Liquid Clustered by `(year, month)`, **no scope filter**, no CDF — it's
     the serving layer); single watermark (silver is the only source); `07_verify.py` reconciles
-    silver↔gold; `analysis/answers.sql` holds the 2 queries with the Jan–May 2023 scope applied here.
+    silver↔gold; `analysis/` holds the 2 queries (one file each) with the Jan–May 2023 scope applied here.
 - Step 5 — orchestration (Asset Bundle / Databricks Job; retire the Actions deploy bridge).
 - Step 6 — readme + eda polish.
 - Step 7 — final review + delivery.
@@ -74,7 +74,7 @@ A medallion over the NYC TLC dataset, incremental at every hop.
 2. Consumption layer with required columns + taxi_type + is_amount_valid. (silver ✅ / gold ✅)
 3. PySpark in ingestion. ✅
 4. Gold OBT (join-free). ✅
-5. Both questions answered. ✅ (`analysis/answers.sql`)
+5. Both questions answered. ✅ (`analysis/q1_*.sql`, `analysis/q2_*.sql`)
 6. Observability: Delta history + lineage. ✅
 7. Job DAG versioned. — Step 5
 8. README with run steps + rationale. — Step 6

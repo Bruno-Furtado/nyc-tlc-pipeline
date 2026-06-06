@@ -26,7 +26,7 @@ Personal project to learn Databricks: a medallion pipeline (bronze/silver/gold) 
 
 ### Scope
 - Yellow + green only; ingest incrementally from 2023-01 to the latest published month (unpublished months return 403/404 and are skipped). Q1 = yellow only; Q2 = yellow+green, May 2023.
-- Business scope (Jan–May 2023) + question rules live in `analysis/answers.sql`, **not in the tables**.
+- Business scope (Jan–May 2023) + question rules live in the `analysis/` queries (one `.sql` per question), **not in the tables**.
 
 ### Layers & modeling
 - **Transform layers in Spark SQL** (`src/sql/NN_*.sql`, run by thin Python runners via `config.run_sql_file`); PySpark stays in ingestion. No dbt. SQL files numbered like their runners.
