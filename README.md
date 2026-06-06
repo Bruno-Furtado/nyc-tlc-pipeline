@@ -77,6 +77,13 @@ python src/pipeline/07_verify.py
 # then run the analysis/*.sql queries against the gold catalog for the 2 answers
 ```
 
+`01_download.py` lands 2023-01 to the latest published month by default. To target a specific range
+(e.g. one month, for faster testing), set `NYC_TLC_START` / `NYC_TLC_END` (`YYYY-MM`):
+```
+NYC_TLC_START=2023-05 NYC_TLC_END=2023-05 python src/pipeline/01_download.py   # one month
+NYC_TLC_START=2023-01 NYC_TLC_END=2023-03 python src/pipeline/01_download.py   # a range
+```
+
 To start from a clean slate, `reset.py` drops the whole target catalog (schemas, tables, volumes,
 and staged files); then re-run from step 4:
 ```
