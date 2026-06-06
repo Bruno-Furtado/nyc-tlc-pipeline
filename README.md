@@ -21,9 +21,10 @@ src/
 │  ├─ config.py       # catalog, spark/logger, landing_dir/bronze_table, run_sql_file
 │  ├─ 00_setup.py     # provision catalog, schemas, landing volume (runs 00_setup.sql)
 │  ├─ 01_download.py  # land TLC parquet into bronze.landing (incremental)
-│  ├─ 02_bronze.py    # append landed files into bronze Delta, PySpark (source_file lineage)
+│  ├─ 02_bronze.py    # append new files into bronze Delta, PySpark (source_file lineage, CDF on)
 │  ├─ 03_verify.py    # reconcile landing vs bronze row counts (fail-fast)
-│  └─ 04_silver.py    # build silver.taxi_trips (runs 04_silver.sql)
+│  ├─ 04_silver.py    # build silver.taxi_trips (runs 04_silver.sql)
+│  └─ reset.py        # drop the whole catalog (schemas+tables+volumes+files) for a clean re-test
 └─ sql/
    ├─ 00_setup.sql    # catalog, schemas, landing volume
    ├─ 02_bronze.sql   # bronze table comments + tags
@@ -55,6 +56,12 @@ python src/pipeline/01_download.py
 python src/pipeline/02_bronze.py
 python src/pipeline/03_verify.py
 python src/pipeline/04_silver.py
+```
+
+To start from a clean slate, `reset.py` drops the whole target catalog (schemas, tables, volumes,
+and staged files); then re-run from step 4:
+```
+python src/pipeline/reset.py     # destructive, honors NYC_TLC_CATALOG (default nyc_tlc_dev)
 ```
 
 ### Lint
