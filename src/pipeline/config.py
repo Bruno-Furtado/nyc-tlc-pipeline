@@ -80,10 +80,11 @@ def read_inserts_since(spark: DatabricksSession, table: str, start_version: int)
         # each bronze write is a numbered version; start the log from start_version (inclusive)
         .option("startingVersion", start_version)
         .table(table)
-        # bronze is append-only, so keep only the inserted rows (ignore any update/delete entries)
+        # the source is append-only, so keep only inserted rows (ignore any update/delete entries)
         .where("_change_type = 'insert'")
-        # each row is tagged with the version it entered in; keep that as _source_version
-        # (our "already read up to here" marker) and drop the log's other bookkeeping columns
+        # each row is tagged with the version it entered in; keep that as _source_version (our
+        # "already read up to here" marker). Drop the log's bookkeeping columns and the source's own
+        # _source_version if it has one (silver does), so the rename below never collides.
+        .drop("_change_type", "_commit_timestamp", "_source_version")
         .withColumnRenamed("_commit_version", "_source_version")
-        .drop("_change_type", "_commit_timestamp")
     )
