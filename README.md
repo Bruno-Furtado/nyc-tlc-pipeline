@@ -12,10 +12,19 @@
 Medallion pipeline for the NYC TLC taxi dataset on Databricks Free Edition.
 </div>
 
-## 🎬 Demo
-The same pipeline runs two ways.
+## 🚀 Setup & run
 
-**Local**: one command runs every step (Databricks Connect, the fast dev loop):
+### Setup
+
+```bash
+python3.12 -m venv .venv && source .venv/bin/activate
+pip install -r requirements.txt -r requirements-dev.txt
+databricks auth login --host <workspace-url>
+```
+
+### Local
+
+One command runs every step (Databricks Connect).
 
 ```bash
 python src/pipeline/run.py
@@ -27,9 +36,12 @@ python src/pipeline/run.py
 
 </div>
 
-**Production**: the same pipeline as an orchestrated Databricks Job:
+### Production
+
+The same pipeline as an orchestrated Databricks Job.
 
 ```bash
+databricks bundle deploy --target prod
 databricks bundle run nyc_tlc_pipeline --target prod
 ```
 
@@ -39,9 +51,12 @@ databricks bundle run nyc_tlc_pipeline --target prod
 
 </div>
 
+> **Requires** Python 3.12 and the [Databricks CLI](https://docs.databricks.com/dev-tools/cli/install.html).
+
 ---
 
 ## 🗂️ Structure
+
 ```
 src/pipeline/
 ├─ config.py            # spark, catalog, CDF helpers
@@ -62,31 +77,14 @@ resources/              # the Databricks Jobs (pipeline DAG + reset)
 databricks.yml          # asset bundle: targets + the jobs
 ```
 
-## 🌎 Environments & Dev
+## 🗄️ Environments
+
 Free Edition is one workspace, so environments are just **separate catalogs**:
-- **`nyc_tlc_dev`**: dev, the default target.
-- **`nyc_tlc`**: prod. Merging to `main` deploys here.
-
-The pipeline runs as a **Databricks Job** versioned as an **Asset Bundle**, deployed per target.
-
-```bash
-# setup (once)
-python3.12 -m venv .venv && source .venv/bin/activate
-pip install -r requirements.txt -r requirements-dev.txt
-databricks auth login --host <workspace-url>
-
-# dev run
-python src/pipeline/run.py
-
-# dev job (deploy + run on the dev catalog)
-databricks bundle deploy --target dev
-databricks bundle run nyc_tlc_pipeline --target dev
-
-# start fresh (drop the catalog)
-databricks bundle run nyc_tlc_reset --target dev
-```
+- **`nyc_tlc_dev`**: `dev` (the default target).
+- **`nyc_tlc`**: `prod` (merging to main deploys here).
 
 ## 🏗️ How it works
+
 A medallion pipeline, incremental at every hop via Delta Change Data Feed. Full rationale in [docs/data-model.md](docs/data-model.md).
 
 1. **Download**: land the TLC parquet in a volume; idempotent (distinct source file + atomic append).
@@ -95,7 +93,11 @@ A medallion pipeline, incremental at every hop via Delta Change Data Feed. Full 
 4. **Gold**: a join-free OBT (consumption columns + year, month and pickup hour).
 5. **Analysis**: two SQL queries answer the questions (the Jan–May 2023 scope lives here).
 
-In production run as a Databricks Job: a linear DAG on Databricks Workflows.
+> In production run as a Databricks Job: a linear DAG on Databricks Workflows.
+
+## 🤖 Claude subagent
+
+A read-only [data-engineering reviewer](.claude/agents/data-engineering-reviewer.md) audits the diff before every PR.
 
 ---
 
