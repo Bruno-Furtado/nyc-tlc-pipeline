@@ -4,5 +4,8 @@ __pycache__/
 *.pyc
 .ruff_cache/
 
+# Databricks Asset Bundle
+.databricks/
+
 # macOS
 .DS_Store

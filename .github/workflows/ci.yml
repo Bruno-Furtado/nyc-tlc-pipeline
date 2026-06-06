@@ -21,7 +21,8 @@ jobs:
       - name: ruff format check
         run: ruff format --check src/
 
-  # Deploy to production (catalog nyc_tlc) on merge to main, via Databricks Connect.
+  # Deploy the asset bundle (the prod Job definition) on merge to main. Execution is on-demand
+  # (databricks bundle run / the Workflows UI), so a merge updates the job without processing data.
   deploy:
     needs: lint
     if: github.event_name != 'pull_request'
@@ -29,17 +30,8 @@ jobs:
     env:
       DATABRICKS_HOST: ${{ secrets.DATABRICKS_HOST }}
       DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_TOKEN }}
-      NYC_TLC_CATALOG: nyc_tlc
     steps:
       - uses: actions/checkout@v6
-      - uses: actions/setup-python@v6
-        with:
-          python-version: "3.12"
-      - name: Install runtime deps
-        run: pip install -r requirements.txt
-      - name: Run pipeline against prod
-        run: |
-          for f in src/pipeline/[0-9]*.py; do
-            echo "running $f"
-            python "$f"
-          done
+      - uses: databricks/setup-cli@main
+      - name: Deploy bundle to prod
+        run: databricks bundle deploy --target prod
