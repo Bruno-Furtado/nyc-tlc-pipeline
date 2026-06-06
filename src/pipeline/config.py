@@ -9,6 +9,7 @@ environments by Unity Catalog, not by workspace:
 
 import logging
 import os
+import sys
 from pathlib import Path
 
 from databricks.connect import DatabricksSession
@@ -16,13 +17,29 @@ from pyspark.sql import DataFrame
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
 
-CATALOG = os.environ.get("NYC_TLC_CATALOG", "nyc_tlc_dev")
+
+def _knob(flag: str, env: str, default: str | None = None) -> str | None:
+    """A run knob: --flag value (the job passes it) > env var (local run.py) > default."""
+    if flag in sys.argv:
+        return sys.argv[sys.argv.index(flag) + 1]
+    return os.environ.get(env, default)
+
+
+CATALOG = _knob("--catalog", "NYC_TLC_CATALOG", "nyc_tlc_dev")
+START = _knob("--start", "NYC_TLC_START", "2023-01")  # "YYYY-MM"; the dataset begins 2023-01
+END = _knob("--end", "NYC_TLC_END")  # None / "" => up to the latest published month
 SQL_DIR = Path(__file__).resolve().parent.parent / "sql"
 
 
 def get_spark() -> DatabricksSession:
-    """Spark session — same call locally (Databricks Connect) and on Databricks."""
-    return DatabricksSession.builder.serverless(True).getOrCreate()
+    """Spark session — same call locally and on Databricks.
+
+    Inside a Databricks job the session already exists; serverless() is only the Databricks Connect
+    handshake for the local environment (it would open a remote session from within the job)."""
+    builder = DatabricksSession.builder
+    if "DATABRICKS_RUNTIME_VERSION" not in os.environ:  # local → Databricks Connect to serverless
+        builder = builder.serverless(True)
+    return builder.getOrCreate()
 
 
 def get_logger(name: str) -> logging.Logger:

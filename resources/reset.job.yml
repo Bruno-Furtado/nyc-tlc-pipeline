@@ -1,0 +1,19 @@
+# On-demand cleanup: drop the whole catalog to start fresh (then re-run the pipeline to rebuild).
+resources:
+  jobs:
+    nyc_tlc_reset:
+      name: nyc-tlc-reset
+      description: Drop the target catalog (cascade) to reset to a clean slate.
+      parameters:
+        - name: catalog
+          default: ${var.catalog}
+      tasks:
+        - task_key: reset
+          spark_python_task:
+            python_file: ../src/pipeline/reset.py
+            parameters: ["--catalog", "{{job.parameters.catalog}}"]
+          environment_key: default
+      environments:
+        - environment_key: default
+          spec:
+            client: "2" # serverless environment version (reset needs no extra deps)

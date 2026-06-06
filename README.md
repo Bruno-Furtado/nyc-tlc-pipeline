@@ -13,13 +13,24 @@ Medallion pipeline for the NYC TLC taxi dataset on Databricks Free Edition.
 </div>
 
 ## 🎬 Demo
-One command: pick env + month range, it runs every step.
+
+**Local** — one command picks env + month range and runs every step (Databricks Connect):
+```bash
+python src/pipeline/run.py
+```
 
 <div align="center">
 
 ![demo](https://github.com/user-attachments/assets/f78c6380-3178-415f-9d33-5f9c5d0f9d53)
 
 </div>
+
+**Production** — the same pipeline as an orchestrated Databricks Job, on demand:
+```bash
+databricks bundle run nyc_tlc_pipeline --target prod
+```
+
+<!-- prod run video -->
 
 ---
 
@@ -39,6 +50,8 @@ src/pipeline/
 └─ reset.py        # drop the catalog
 src/sql/           # DDL + conform SQL per layer
 analysis/          # the two answer queries (Q1, Q2)
+resources/         # the Databricks Jobs (pipeline DAG + reset)
+databricks.yml     # asset bundle: targets + the jobs
 docs/              # brief, plan, conventions, data model
 ```
 
@@ -49,34 +62,27 @@ Full rationale in [docs/data-model.md](docs/data-model.md).
 - **OBT, not a star**: the two questions are simple aggregates.
 - **Spark SQL transforms**: PySpark only for ingestion and the CDF plumbing.
 
-## 🧑‍💻 Dev
-Local via Databricks Connect.
-```bash
-# env
-python3.12 -m venv .venv
-source .venv/bin/activate
-pip install -r requirements.txt -r requirements-dev.txt
+## 🌎 Environments & dev
+Free Edition is one workspace, so environments are just **separate catalogs**: `nyc_tlc_dev` (dev,
+default) and `nyc_tlc` (prod). The pipeline is a **Databricks Job** versioned as an **Asset Bundle**;
+merging to `main` deploys prod (CI runs `bundle deploy --target prod`).
 
-# databricks CLI
+```bash
+# setup (once)
+python3.12 -m venv .venv && source .venv/bin/activate
+pip install -r requirements.txt -r requirements-dev.txt
 databricks auth login --host <workspace-url>
 
-# run everything
-python src/pipeline/run.py
-```
-Lint before committing, or start fresh:
-```bash
-# lint
-ruff check src/
-ruff format src/
+# dev job: deploy + run on the dev catalog
+databricks bundle deploy --target dev
+databricks bundle run nyc_tlc_pipeline --target dev
 
-# start fresh
-python src/pipeline/reset.py
-```
+# lint before committing
+ruff check src/ && ruff format src/
 
-## 🚀 Deploy
-Free Edition is one workspace, so environments are just **separate catalogs**:
-- **`nyc_tlc_dev`**: local/dev (the default).
-- **`nyc_tlc`**: prod. Merging to `main` runs the pipeline here automatically.
+# start fresh: drop the catalog
+databricks bundle run nyc_tlc_reset --target dev
+```
 
 ---
 

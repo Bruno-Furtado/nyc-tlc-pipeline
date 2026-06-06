@@ -1,0 +1,26 @@
+# Databricks Asset Bundle: the NYC TLC pipeline as a versioned serverless Job.
+# Free Edition is one workspace, so environments are isolated by catalog (dev/prod), not by workspace.
+#   deploy:  databricks bundle deploy --target dev   (creates/updates the job; nyc_tlc_dev)
+#   run:     databricks bundle run nyc_tlc_pipeline --target dev   (executes the DAG on demand)
+bundle:
+  name: nyc-tlc-pipeline
+
+variables:
+  catalog:
+    description: Target Unity Catalog; dev/prod are isolated by catalog on Free Edition's single workspace.
+    default: nyc_tlc_dev
+
+include:
+  - resources/*.yml
+
+targets:
+  dev:
+    mode: development
+    default: true
+    # uses the variable default (nyc_tlc_dev)
+  prod:
+    mode: production
+    workspace:
+      root_path: /Workspace/Users/${workspace.current_user.userName}/.bundle/${bundle.name}/${bundle.target}
+    variables:
+      catalog: nyc_tlc

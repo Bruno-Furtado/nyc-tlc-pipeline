@@ -1,0 +1,75 @@
+# The medallion pipeline as a single linear DAG of serverless Python tasks.
+# Each task reuses the existing src/pipeline/NN_*.py; the catalog flows in as a job parameter.
+resources:
+  jobs:
+    nyc_tlc_pipeline:
+      name: nyc-tlc-pipeline
+      description: Medallion (bronze/silver/gold) over the NYC TLC taxi dataset, incremental via Delta CDF.
+      parameters:
+        - name: catalog
+          default: ${var.catalog}
+        - name: start # download month range (parity with run.py)
+          default: "2023-01"
+        - name: end
+          default: "" # empty => up to the latest published month
+      tasks:
+        - task_key: setup
+          spark_python_task:
+            python_file: ../src/pipeline/00_setup.py
+            parameters: ["--catalog", "{{job.parameters.catalog}}"]
+          environment_key: default
+        # only download takes --start/--end (the other steps ignore them); the rest pass just --catalog
+        - task_key: download
+          depends_on: [{ task_key: setup }]
+          spark_python_task:
+            python_file: ../src/pipeline/01_download.py
+            parameters:
+              - "--catalog"
+              - "{{job.parameters.catalog}}"
+              - "--start"
+              - "{{job.parameters.start}}"
+              - "--end"
+              - "{{job.parameters.end}}"
+          environment_key: default
+        - task_key: bronze
+          depends_on: [{ task_key: download }]
+          spark_python_task:
+            python_file: ../src/pipeline/02_bronze.py
+            parameters: ["--catalog", "{{job.parameters.catalog}}"]
+          environment_key: default
+        - task_key: verify_bronze
+          depends_on: [{ task_key: bronze }]
+          spark_python_task:
+            python_file: ../src/pipeline/03_verify.py
+            parameters: ["--catalog", "{{job.parameters.catalog}}"]
+          environment_key: default
+        - task_key: silver
+          depends_on: [{ task_key: verify_bronze }]
+          spark_python_task:
+            python_file: ../src/pipeline/04_silver.py
+            parameters: ["--catalog", "{{job.parameters.catalog}}"]
+          environment_key: default
+        - task_key: verify_silver
+          depends_on: [{ task_key: silver }]
+          spark_python_task:
+            python_file: ../src/pipeline/05_verify.py
+            parameters: ["--catalog", "{{job.parameters.catalog}}"]
+          environment_key: default
+        - task_key: gold
+          depends_on: [{ task_key: verify_silver }]
+          spark_python_task:
+            python_file: ../src/pipeline/06_gold.py
+            parameters: ["--catalog", "{{job.parameters.catalog}}"]
+          environment_key: default
+        - task_key: verify_gold
+          depends_on: [{ task_key: gold }]
+          spark_python_task:
+            python_file: ../src/pipeline/07_verify.py
+            parameters: ["--catalog", "{{job.parameters.catalog}}"]
+          environment_key: default
+      environments:
+        - environment_key: default
+          spec:
+            client: "2" # serverless environment version (2 = supported floor; latest is 4)
+            dependencies:
+              - requests==2.34.2

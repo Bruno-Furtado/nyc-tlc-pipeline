@@ -1,33 +1,30 @@
 """Download NYC TLC parquet files into the bronze landing volume.
 
 For each month in the range, upload the file if it isn't in the landing zone yet. The range is
-[NYC_TLC_START, NYC_TLC_END] (env vars, `YYYY-MM`): START defaults to 2023-01 (where the dataset
-begins), and when END is unset the range ends at the latest published month. A month is handled as a
-running index (year*12 + month), so building the range and stepping back are plain integer
-arithmetic. The TLC CloudFront never returns 404 (a missing file and a rate limit both answer 403
-with no Retry-After), so we discover the latest published month first and then fail loudly on any
-non-200 within the range (it can only be throttling, never missing data). Requests back off
+[START, END] (`YYYY-MM`, resolved in config from the job params or env): START defaults to 2023-01
+(where the dataset begins), and when END is unset the range ends at the latest published month. A
+month is handled as a running index (year*12 + month), so building the range and stepping back are
+plain integer arithmetic. The TLC CloudFront never returns 404 (a missing file and a rate limit both
+answer 403 with no Retry-After), so we discover the latest published month and then fail loudly on
+any non-200 within the range (it can only be throttling, never missing data). Requests back off
 exponentially on 403/429/5xx.
 
 Functions are ordered by the call sequence (callers before the helpers they call); main, the
 entry point, sits at the bottom.
 """
 
-import os
 import time
 from datetime import date
 from io import BytesIO
 
 import requests
-from config import get_logger, landing_dir
+from config import END, START, get_logger, landing_dir
 from databricks.sdk import WorkspaceClient
 
 logger = get_logger(__name__)
 
 BASE_URL = "https://d37ci6vzurychx.cloudfront.net/trip-data"
 TAXI_TYPES = ("yellow", "green")
-START = os.environ.get("NYC_TLC_START", "2023-01")  # "YYYY-MM"; the dataset begins 2023-01
-END = os.environ.get("NYC_TLC_END")  # "YYYY-MM", or None => up to the latest published month
 MAX_RETRIES = 10
 MAX_BACKOFF_SECONDS = 90
 LOOKBACK_MONTHS = 6

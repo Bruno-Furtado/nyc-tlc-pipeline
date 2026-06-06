@@ -13,17 +13,21 @@
   `silver.taxi_trips`. The original `source_file not in (...)` anti-join (a full scan) was replaced by
   incremental **Delta CDF** with a `_source_version` watermark per `taxi_type`; `05_verify.py`
   reconciles bronze↔silver counts (see How it works).
-- **Step 4 — gold + analysis** (this PR): `06_gold` conforms the silver CDF into `gold.obt_trips`
+- **Step 4 — gold + analysis** (PRs #20/#21): `06_gold` conforms the silver CDF into `gold.obt_trips`
   (a join-free OBT: consumption columns + derived `year`/`month`/`pickup_hour`, single watermark, no
   scope filter); `07_verify.py` reconciles silver↔gold counts; `analysis/*.sql` answers the 2
   questions with the Jan–May 2023 scope applied there.
-- Merge to `main` auto-deploys to prod via the GitHub Actions `deploy` job (temporary bridge, retired in Step 5).
+- **Step 5 — orchestration** (this PR): the pipeline is a versioned **Databricks Job** — a linear DAG
+  of 8 serverless `spark_python_task`s (one per `NN_*.py`), defined as code via a **Databricks Asset
+  Bundle** (`databricks.yml` + `resources/pipeline.job.yml`). `databricks bundle deploy --target
+  {dev,prod}` creates/updates the job; execution is on-demand (`bundle run` / Workflows UI). This
+  retires the GitHub Actions deploy bridge — CI now runs `bundle deploy --target prod` on merge.
 
 ## Plan (one PR per phase)
 - Step 1 — setup. ✅
 - Step 2 — extract + bronze. ✅
 - Step 3 — silver (conform). ✅
-- **Step 4 — CDF incremental rework + gold + analysis** (in progress, sliced into PRs):
+- **Step 4 — CDF incremental rework + gold + analysis** ✅ (sliced into PRs #18–#21):
   - **Bronze CDF** (PR #18 ✅): `delta.enableChangeDataFeed` from creation (version 0); ingested rows
     logged via Delta history; `reset.py` added to drop the catalog for a clean re-test.
   - **Silver CDF** (this PR): `04_silver.sql` DDL gains `_source_version` and drops `source_file`
@@ -35,7 +39,9 @@
     `year`/`month`/`pickup_hour`, Liquid Clustered by `(year, month)`, **no scope filter**, no CDF — it's
     the serving layer); single watermark (silver is the only source); `07_verify.py` reconciles
     silver↔gold; `analysis/` holds the 2 queries (one file each) with the Jan–May 2023 scope applied here.
-- Step 5 — orchestration (Asset Bundle / Databricks Job; retire the Actions deploy bridge).
+- **Step 5 — orchestration** (this PR): the pipeline DAG is versioned as a Databricks Job via an Asset
+  Bundle (`databricks.yml` + `resources/pipeline.job.yml`); the GitHub Actions deploy bridge is retired
+  (CI now runs `bundle deploy --target prod`). ✅
 - Step 6 — readme + eda polish.
 - Step 7 — final review + delivery.
 
@@ -68,6 +74,13 @@ A medallion over the NYC TLC dataset, incremental at every hop.
    layers stay general and reusable.
 7. **Observability.** Delta history records every load; `source_file` (bronze) and `_source_version`
    (silver/gold) give per-row lineage. No control schema.
+8. **Orchestration.** The 8 steps run as a linear Databricks Job (one serverless `spark_python_task`
+   per `NN_*.py`), defined as code in a Databricks Asset Bundle and deployed per target
+   (`databricks bundle deploy --target {dev,prod}`). The `catalog` flows in as a job parameter (plus
+   `start`/`end` on the download task, for a custom month range); the same scripts still run locally via
+   `run.py` (Databricks Connect). Each knob resolves `--flag` (job) → env var (`run.py`) → default in
+   `config._knob`. `get_spark()` detects which side it's on (`DATABRICKS_RUNTIME_VERSION`) and only adds
+   `serverless(True)` locally. A second job (`nyc_tlc_reset`) drops the catalog for a clean re-test.
 
 ## Checklist
 1. Download + bronze yellow & green. ✅
@@ -76,7 +89,7 @@ A medallion over the NYC TLC dataset, incremental at every hop.
 4. Gold OBT (join-free). ✅
 5. Both questions answered. ✅ (`analysis/q1_*.sql`, `analysis/q2_*.sql`)
 6. Observability: Delta history + lineage. ✅
-7. Job DAG versioned. — Step 5
+7. Job DAG versioned. ✅ (Databricks Asset Bundle → serverless Job)
 8. README with run steps + rationale. — Step 6
 
 ## Tech debt (after delivery)

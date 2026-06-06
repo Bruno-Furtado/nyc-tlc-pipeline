@@ -21,8 +21,12 @@ Personal project to learn Databricks: a medallion pipeline (bronze/silver/gold) 
 ## Decisions
 
 ### Environment
-- Local + Databricks run the same code via **Databricks Connect**: `get_spark()` = `DatabricksSession.builder.serverless(True).getOrCreate()` (Free Edition is serverless; needs `databricks-connect==18.1.*`).
-- Dev/prod isolated by catalog via `NYC_TLC_CATALOG` (default `nyc_tlc_dev`) — Free Edition is one workspace.
+- The same code runs locally (Databricks Connect) and inside a Databricks Job. `get_spark()` is dual-mode: inside the job the session already exists, so it adds `serverless(True)` only when not in the runtime (`DATABRICKS_RUNTIME_VERSION` absent → local Databricks Connect; needs `databricks-connect==18.1.*`).
+- Dev/prod isolated by catalog — Free Edition is one workspace. Run knobs (`catalog`, plus `start`/`end` for the download range) resolve `--flag` (the job passes it) → env var (local `run.py`, e.g. `NYC_TLC_CATALOG`) → default, via the `config._knob` helper.
+
+### Orchestration
+- The pipeline is a **Databricks Job** (a linear DAG of 8 serverless `spark_python_task`s, one per `NN_*.py`), defined as code in a **Databricks Asset Bundle** (`databricks.yml` + `resources/pipeline.job.yml`), deployed per target with `databricks bundle deploy --target {dev,prod}`. Execution is on-demand (`bundle run` / Workflows UI); CI runs `bundle deploy --target prod` on merge (no auto-run). This replaced the temporary GitHub Actions shell-loop deploy bridge; `run.py` stays the local dev loop.
+- A second job `nyc_tlc_reset` (`resources/reset.job.yml`) runs `reset.py` to drop the catalog (cascade) for a clean re-test, in both targets. `mode: production` requires an explicit `workspace.root_path`, set from `${workspace.current_user.userName}`.
 
 ### Scope
 - Yellow + green only; ingest incrementally from 2023-01 to the latest published month (unpublished months return 403/404 and are skipped). Q1 = yellow only; Q2 = yellow+green, May 2023.

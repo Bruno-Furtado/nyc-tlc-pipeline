@@ -4,8 +4,8 @@ Drops the entire catalog with CASCADE: every schema, table, volume, and the file
 volumes, plus the catalog's own comment/tags. Run 00_setup.py afterwards to recreate it, then
 01_download.py onward.
 
-Targets the catalog from NYC_TLC_CATALOG (config.CATALOG, default nyc_tlc_dev). This is
-destructive — point NYC_TLC_CATALOG at the right catalog before running.
+Targets config.CATALOG (default nyc_tlc_dev). This is destructive — point the catalog at the right
+place (the job param / NYC_TLC_CATALOG) before running.
 """
 
 from config import CATALOG, get_logger, get_spark
