@@ -6,8 +6,9 @@
   isolated by catalog via `NYC_TLC_CATALOG`.
 - **Step 2 — extract + bronze** (PRs #12/#14): `01_download.py` lands TLC parquet incrementally
   (unpublished months 403/404 are skipped), `02_bronze.py` appends new files into
-  `bronze.{yellow,green}_tripdata_raw` (deduped by `source_file`), `03_verify.py` reconciles
-  landing vs bronze row counts (fail-fast).
+  `bronze.{yellow,green}_tripdata_raw` (only files whose `source_file` isn't there yet; the atomic
+  append keeps reruns idempotent), with Change Data Feed enabled for the silver/gold incremental;
+  `03_verify.py` reconciles landing vs bronze row counts (fail-fast).
 - **Step 3 — silver** (PR #15): `04_silver.sql`/`.py` conform yellow+green into `silver.taxi_trips`.
   > Reworked in Step 4: today's `source_file not in (...)` incremental full-scans bronze; moving to
   > Delta CDF (see How it works).
@@ -50,8 +51,10 @@ A medallion over the NYC TLC dataset, incremental at every hop.
    (yellow and green are separate Delta tables with independent histories); gold keeps one (silver is
    its only source). `source_file` stays in bronze (ingestion idempotency + the `year`/`month` source);
    silver/gold carry `year`/`month` + `_source_version`, not `source_file`.
-4. **Idempotency.** Reruns are no-ops: with no new commits the CDF read returns nothing, so nothing
-   is appended.
+4. **Idempotency.** Bronze appends only files whose `source_file` isn't already there, and the append
+   is one atomic commit (a failure lands the batch fully or not at all, never duplicates); the bronze
+   table itself is the source of truth for what's ingested. Silver/gold reruns are no-ops too: with no
+   new commits the CDF read returns nothing, so nothing is appended.
 5. **Validation (fail-fast).** Row-count reconciliation per period `(year, month)` (bronze↔silver,
    silver↔gold) plus value asserts (e.g. non-null timestamps, `pickup_hour` in 0–23).
 6. **Business scope** (Jan–May 2023 + question rules) lives in `analysis/`, not in the tables, so the
