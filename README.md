@@ -13,7 +13,7 @@ Medallion pipeline for the NYC TLC taxi dataset on Databricks Free Edition.
 </div>
 
 ## 🎬 Demo
-One command (`run.py`): pick env + month range, it runs every step.
+One command: pick env + month range, it runs every step.
 
 <div align="center">
 
