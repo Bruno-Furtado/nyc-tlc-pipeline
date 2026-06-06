@@ -12,13 +12,9 @@
 Medallion pipeline for the NYC TLC taxi dataset on Databricks Free Edition.
 </div>
 
-## 🚀 Setup & run
-The same pipeline runs two ways.
+## 🚀 Setup & Run
 
-> **Requires** Python 3.12 and the [Databricks CLI](https://docs.databricks.com/dev-tools/cli/install.html).
-> On macOS: `brew tap databricks/tap && brew install databricks`.
-
-Setup (once):
+### Initial Setup:
 
 ```bash
 python3.12 -m venv .venv && source .venv/bin/activate
@@ -26,7 +22,9 @@ pip install -r requirements.txt -r requirements-dev.txt
 databricks auth login --host <workspace-url>
 ```
 
-**Local**: one command runs every step (Databricks Connect, the fast dev loop):
+### Local
+
+One command runs every step (Databricks Connect).
 
 ```bash
 python src/pipeline/run.py
@@ -38,7 +36,9 @@ python src/pipeline/run.py
 
 </div>
 
-**Production**: the same pipeline as an orchestrated Databricks Job:
+### Production
+
+The same pipeline as an orchestrated Databricks Job.
 
 ```bash
 databricks bundle deploy --target prod
@@ -50,6 +50,10 @@ databricks bundle run nyc_tlc_pipeline --target prod
 ![demo](https://github.com/user-attachments/assets/957befae-093e-4514-866e-822757cc86cd)
 
 </div>
+
+> **Requires** Python 3.12 and the [Databricks CLI](https://docs.databricks.com/dev-tools/cli/install.html).
+> 
+> On macOS: `brew tap databricks/tap && brew install databricks`.
 
 ---
 
