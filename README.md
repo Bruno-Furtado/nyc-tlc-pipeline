@@ -25,13 +25,18 @@ src/
 │  ├─ 03_verify.py    # reconcile landing vs bronze row counts (fail-fast)
 │  ├─ 04_silver.py    # conform bronze CDF into silver.taxi_trips (incremental, per-taxi watermark)
 │  ├─ 05_verify.py    # reconcile bronze vs silver row counts per taxi_type (fail-fast)
+│  ├─ 06_gold.py      # conform silver CDF into gold.obt_trips (incremental, single watermark)
+│  ├─ 07_verify.py    # reconcile silver vs gold row counts per taxi_type (fail-fast)
 │  └─ reset.py        # drop the whole catalog (schemas+tables+volumes+files) for a clean re-test
 └─ sql/
    ├─ 00_setup.sql           # catalog, schemas, landing volume
    ├─ 02_bronze.sql          # bronze table comments + tags
    ├─ 04_silver.sql          # silver DDL + metadata (table, CDF, clustering, comments/tags)
-   └─ 04_silver_conform.sql  # conform a bronze CDF batch into silver (parametrized per taxi)
-analysis/             # the 2 answers and EDA
+   ├─ 04_silver_conform.sql  # conform a bronze CDF batch into silver (parametrized per taxi)
+   ├─ 06_gold.sql            # gold obt_trips DDL + metadata (table, clustering, comments/tags)
+   └─ 06_gold_conform.sql    # conform a silver CDF batch into gold.obt_trips
+analysis/
+└─ answers.sql        # the 2 questions, with the Jan-May 2023 scope applied here
 docs/                 # goals, plan, conventions, data model
 ```
 
@@ -60,12 +65,15 @@ databricks auth login --host <workspace-url>
 # 4. provision the dev catalog (schemas + landing volume, with comments + tags)
 python src/pipeline/00_setup.py
 
-# 5. land TLC files, ingest into bronze, verify, build silver, verify (all incremental, safe to rerun)
+# 5. run the pipeline end to end (all incremental, safe to rerun)
 python src/pipeline/01_download.py
 python src/pipeline/02_bronze.py
 python src/pipeline/03_verify.py
 python src/pipeline/04_silver.py
 python src/pipeline/05_verify.py
+python src/pipeline/06_gold.py
+python src/pipeline/07_verify.py
+# then run analysis/answers.sql against the gold catalog for the 2 answers
 ```
 
 To start from a clean slate, `reset.py` drops the whole target catalog (schemas, tables, volumes,
@@ -89,6 +97,11 @@ Free Edition is a single workspace, so dev/prod are isolated by **catalog**:
 ```
 nyc_tlc_dev   # default, local/testing
 nyc_tlc       # production, auto-deployed on merge to main
+```
+
+To reset **prod** (one-off, without changing your shell — the pipeline itself runs on merge):
+```
+NYC_TLC_CATALOG=nyc_tlc python src/pipeline/reset.py
 ```
 
 ### CI
