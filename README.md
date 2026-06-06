@@ -12,6 +12,15 @@
 Medallion pipeline for the NYC TLC taxi dataset on Databricks Free Edition.
 </div>
 
+## 🎬 Demo
+The whole pipeline from one interactive command (`run.py`): pick the environment and an optional month range, then it runs every step in order.
+
+<div align="center">
+
+https://github.com/user-attachments/assets/bbdf66f9-4608-4184-b2eb-bca1498fb5c5
+
+</div>
+
 ---
 
 ## 🗂️ Structure
@@ -27,6 +36,7 @@ src/
 │  ├─ 05_verify.py    # reconcile bronze vs silver row counts per taxi_type (fail-fast)
 │  ├─ 06_gold.py      # conform silver CDF into gold.obt_trips (incremental, single watermark)
 │  ├─ 07_verify.py    # reconcile silver vs gold row counts per taxi_type (fail-fast)
+│  ├─ run.py          # run the whole pipeline, interactive (asks env + month range)
 │  └─ reset.py        # drop the whole catalog (schemas+tables+volumes+files) for a clean re-test
 └─ sql/
    ├─ 00_setup.sql           # catalog, schemas, landing volume
@@ -63,29 +73,12 @@ pip install -r requirements.txt -r requirements-dev.txt
 brew tap databricks/tap && brew install databricks
 databricks auth login --host <workspace-url>
 
-# 4. provision the dev catalog (schemas + landing volume, with comments + tags)
-python src/pipeline/00_setup.py
-
-# 5. run the pipeline end to end (all incremental, safe to rerun)
-python src/pipeline/01_download.py
-python src/pipeline/02_bronze.py
-python src/pipeline/03_verify.py
-python src/pipeline/04_silver.py
-python src/pipeline/05_verify.py
-python src/pipeline/06_gold.py
-python src/pipeline/07_verify.py
+# 4. run the whole pipeline — interactive (asks for env: dev/prod, and an optional month range)
+python src/pipeline/run.py
 # then run the analysis/*.sql queries against the gold catalog for the 2 answers
 ```
 
-`01_download.py` lands 2023-01 to the latest published month by default. To target a specific range
-(e.g. one month, for faster testing), set `NYC_TLC_START` / `NYC_TLC_END` (`YYYY-MM`):
-```
-NYC_TLC_START=2023-05 NYC_TLC_END=2023-05 python src/pipeline/01_download.py   # one month
-NYC_TLC_START=2023-01 NYC_TLC_END=2023-03 python src/pipeline/01_download.py   # a range
-```
-
-To start from a clean slate, `reset.py` drops the whole target catalog (schemas, tables, volumes,
-and staged files); then re-run from step 4:
+To start over, `reset.py` drops the whole target catalog (schemas, tables, volumes, files):
 ```
 python src/pipeline/reset.py     # destructive, honors NYC_TLC_CATALOG (default nyc_tlc_dev)
 ```
