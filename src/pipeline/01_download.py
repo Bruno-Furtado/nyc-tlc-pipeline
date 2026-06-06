@@ -23,8 +23,8 @@ logger = get_logger(__name__)
 BASE_URL = "https://d37ci6vzurychx.cloudfront.net/trip-data"
 START = (2023, 1)
 TAXI_TYPES = ("yellow", "green")
-MAX_RETRIES = 8
-MAX_BACKOFF_SECONDS = 60
+MAX_RETRIES = 10
+MAX_BACKOFF_SECONDS = 90
 LOOKBACK_MONTHS = 6
 PACING_SECONDS = 1.0
 
