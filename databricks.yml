@@ -16,6 +16,20 @@ variables:
 include:
   - resources/*.yml
 
+# Only the runtime tree reaches the workspace: src/ (job tasks), analysis/ (on-demand
+# SQL + EDA notebook), and requirements.txt. Docs and local tooling are excluded.
+# .gitignore is honored on top of this, so .venv/, __pycache__/, .databricks/ never sync.
+sync:
+  exclude:
+    - "docs/"
+    - ".github/"
+    - ".githooks/"
+    - ".vscode/"
+    - ".claude/"
+    - "*.md"
+    - "LICENSE"
+    - "requirements-dev.txt"
+
 targets:
   dev:
     mode: development
