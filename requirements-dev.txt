@@ -1,1 +1,2 @@
 ruff==0.15.15
+matplotlib==3.10.9
