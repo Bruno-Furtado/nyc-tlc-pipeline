@@ -94,10 +94,12 @@ A medallion pipeline, incremental at every hop via Delta Change Data Feed. Full 
 5. **Analysis**: two SQL queries answer the questions (the Jan–May 2023 scope lives here).
 
 > In production run as a Databricks Job: a linear DAG on Databricks Workflows.
+> The job emails you on failure, on success, and when a run goes long (over 20 min).
 
-## 🤖 Claude subagent
+## 🤖 Claude subagents
 
-A read-only [data-engineering reviewer](.claude/agents/data-engineering-reviewer.md) audits the diff before every PR.
+- A read-only [data-engineering reviewer](.claude/agents/data-engineering-reviewer.md) audits the diff before every PR.
+- A [PR flow](.claude/agents/pr-flow.md) agent ships the branch following the git conventions: granular commits and a PR, then squash merge and cleanup once reviewed.
 
 ---
 

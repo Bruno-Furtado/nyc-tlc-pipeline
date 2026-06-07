@@ -5,6 +5,18 @@ resources:
     nyc_tlc_pipeline:
       name: nyc-tlc-pipeline
       description: Medallion (bronze/silver/gold) over the NYC TLC taxi dataset, incremental via Delta CDF.
+      email_notifications:
+        on_success:
+          - ${var.alert_email}
+        on_failure:
+          - ${var.alert_email}
+        on_duration_warning_threshold_exceeded:
+          - ${var.alert_email}
+      health:
+        rules:
+          - metric: RUN_DURATION_SECONDS
+            op: GREATER_THAN
+            value: 1200 # 20 min; on_duration_warning_threshold_exceeded fires off this rule
       parameters:
         - name: catalog
           default: ${var.catalog}

@@ -9,6 +9,9 @@ variables:
   catalog:
     description: Target Unity Catalog; dev/prod are isolated by catalog on Free Edition's single workspace.
     default: nyc_tlc_dev
+  alert_email:
+    description: Address that receives job notifications (failure, success, long-running).
+    default: brunotfurtado@gmail.com
 
 include:
   - resources/*.yml
