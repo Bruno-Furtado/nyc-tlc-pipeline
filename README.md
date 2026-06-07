@@ -87,13 +87,24 @@ Free Edition is one workspace, so environments are just **separate catalogs**:
 
 ## 🏗️ How it works
 
-A medallion pipeline, incremental at every hop via Delta Change Data Feed. Full rationale in [docs/data-model.md](docs/data-model.md).
+A medallion pipeline, incremental at every hop via Delta Change Data Feed, run as a linear Databricks Job.
 
-1. **Download**: land the TLC parquet in a volume; idempotent (distinct source file + atomic append).
-2. **Bronze**: raw, faithful to source (adds source file, Change Data Feed on).
-3. **Silver**: conform yellow and green (canonical timestamps, typed columns, `is_amount_valid`).
-4. **Gold**: a join-free OBT (consumption columns + year, month and pickup hour).
-5. **Analysis**: SQL for profiling and data quality, the business answers, and a narrated EDA notebook. See [analysis/](analysis/README.md).
+0. **Setup**: create the catalog, schemas and volume.
+1. **Download**: land the TLC parquet into the bronze volume; idempotent (distinct source file + atomic append).
+2. **Bronze**: land → raw tables, faithful to source (adds source file, Change Data Feed on).
+3. **Verify bronze**: row-count reconciliation, fail-fast.
+4. **Silver**: conform yellow and green into `taxi_trips` (canonical timestamps, typed columns, `is_amount_valid`).
+5. **Verify silver**: reconcile against bronze.
+6. **Gold**: a join-free OBT `obt_trips` (consumption columns + year, month and pickup hour).
+7. **Verify gold**: reconcile against silver.
+
+**Analysis** runs on demand, not as a Job step: SQL for profiling and data quality, and the business answers.
+
+<div align="center">
+
+![architecture](./docs/architecture.webp)
+
+</div>
 
 > In production run as a Databricks Job: a linear DAG on Databricks Workflows.
 >
