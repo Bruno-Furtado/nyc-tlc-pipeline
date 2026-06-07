@@ -78,14 +78,15 @@ Then choose:
 2. **Squash merge and delete the remote branch:**
    `gh pr merge --squash --delete-branch`.
 
-3. **Return to main and delete the local branch:**
-   `git checkout main && git pull` then `git branch -d <branch>` (use `-D` only
-   if git refuses because it can't confirm the squash, after verifying the PR is
-   merged).
+3. **Return to main, fetch, and delete the previous branch:**
+   `git checkout main`, then `git fetch --prune` (syncs `main` and drops the
+   tracking ref for the deleted remote branch), then `git branch -d <branch>`
+   (use `-D` only if git refuses because it can't confirm the squash, after
+   verifying the PR is merged).
 
 4. Report the result: the squash commit now on `main`, the branch removed local
-   and remote. Note that merging to `main` triggers the CI `bundle deploy
-   --target prod`.
+   and remote. Merging to `main` triggers the CI `bundle deploy --target prod`;
+   do not wait for or track that deploy: report and STOP.
 
 ## General guardrails
 - One phase per invocation.
