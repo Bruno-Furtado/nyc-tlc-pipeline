@@ -87,13 +87,7 @@ Free Edition is one workspace, so environments are just **separate catalogs**:
 
 ## 🏗️ How it works
 
-A medallion pipeline, incremental at every hop via Delta Change Data Feed, run as a linear Databricks Job (one step per file). Full rationale in [docs/data-model.md](docs/data-model.md).
-
-<div align="center">
-
-![architecture](./docs/architecture.webp)
-
-</div>
+A medallion pipeline, incremental at every hop via Delta Change Data Feed, run as a linear Databricks Job.
 
 0. **Setup**: create the catalog, schemas and volume.
 1. **Download**: land the TLC parquet into the bronze volume; idempotent (distinct source file + atomic append).
@@ -104,7 +98,13 @@ A medallion pipeline, incremental at every hop via Delta Change Data Feed, run a
 6. **Gold**: a join-free OBT `obt_trips` (consumption columns + year, month and pickup hour).
 7. **Verify gold**: reconcile against silver.
 
-**Analysis** runs on demand, not as a Job step: SQL for profiling and data quality, the business answers, and a narrated EDA notebook. See [analysis/](analysis/README.md).
+**Analysis** runs on demand, not as a Job step: SQL for profiling and data quality, and the business answers.
+
+<div align="center">
+
+![architecture](./docs/architecture.webp)
+
+</div>
 
 > In production run as a Databricks Job: a linear DAG on Databricks Workflows.
 >
