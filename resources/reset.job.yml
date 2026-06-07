@@ -4,6 +4,18 @@ resources:
     nyc_tlc_reset:
       name: nyc-tlc-reset
       description: Drop the target catalog (cascade) to reset to a clean slate.
+      email_notifications:
+        on_success:
+          - ${var.alert_email}
+        on_failure:
+          - ${var.alert_email}
+        on_duration_warning_threshold_exceeded:
+          - ${var.alert_email}
+      health:
+        rules:
+          - metric: RUN_DURATION_SECONDS
+            op: GREATER_THAN
+            value: 1200 # 20 min; reset normally finishes in seconds, so this is just a safety net
       parameters:
         - name: catalog
           default: ${var.catalog}
