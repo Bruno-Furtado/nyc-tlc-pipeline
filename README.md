@@ -71,8 +71,10 @@ src/pipeline/
 ├─ run.py               # run all, interactive
 └─ reset.py             # drop the catalog
 analysis/
-├─ q1_total_amount.sql  # Q1: avg total_amount per month (yellow only)
-└─ q2_passengers.sql    # Q2: avg passengers per hour (May 2023, all taxis)
+├─ exploration/         # profiling: counts, coverage, distributions
+├─ quality/             # data quality: nulls, negatives, reconciliation
+├─ questions/           # the four business answers (q1..q4)
+└─ notebooks/           # narrated EDA via Databricks Connect (charts)
 resources/              # the Databricks Jobs (pipeline DAG + reset)
 databricks.yml          # asset bundle: targets + the jobs
 ```
@@ -91,7 +93,7 @@ A medallion pipeline, incremental at every hop via Delta Change Data Feed. Full 
 2. **Bronze**: raw, faithful to source (adds source file, Change Data Feed on).
 3. **Silver**: conform yellow and green (canonical timestamps, typed columns, `is_amount_valid`).
 4. **Gold**: a join-free OBT (consumption columns + year, month and pickup hour).
-5. **Analysis**: two SQL queries answer the questions (the Jan–May 2023 scope lives here).
+5. **Analysis**: SQL for profiling and data quality, the four business answers, and a narrated EDA notebook. See [analysis/](analysis/README.md).
 
 > In production run as a Databricks Job: a linear DAG on Databricks Workflows.
 >

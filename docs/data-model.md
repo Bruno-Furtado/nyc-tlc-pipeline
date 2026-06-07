@@ -106,7 +106,10 @@ Choices made against a simpler or more common option, and why.
 - **OBT vs star schema.** A star would add degenerate dimensions for two simple aggregates; a
   single denormalized `obt_trips` answers them join-free.
 
-## The two questions
+## The questions
+
+All answers come from gold (`obt_trips`), with the Jan to May 2023 scope applied in the query,
+not in the table. The two core ones:
 
 ```sql
 -- Q1: avg total_amount per month, yellow only
@@ -123,6 +126,10 @@ where year = 2023 and month = 5 and passenger_count > 0
 group by pickup_hour
 order by pickup_hour;
 ```
+
+The full set lives in [`analysis/`](../analysis/README.md): `exploration/` (profiling),
+`quality/` (data quality checks), `questions/` (q1 to q4, adding revenue per taxi type and the
+hourly demand peak), and a narrated EDA notebook.
 
 ## FAQ
 
