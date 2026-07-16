@@ -1,2 +1,2 @@
-ruff==0.15.17
+ruff==0.15.21
 matplotlib==3.11.0
