@@ -1,3 +1,3 @@
 databricks-connect==18.1.*
-databricks-sdk==0.140.*
+databricks-sdk==0.143.*
 requests==2.34.2
